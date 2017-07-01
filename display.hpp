@@ -66,6 +66,10 @@ class Display {
 			return *_primitives;
 		}
 
+		 CellAttributes attr() {
+			 return CellAttributes();
+		 }
+
 	private:
 		struct winsize _winsize;
 		uint16_t _width;

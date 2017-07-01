@@ -49,16 +49,16 @@ int main() {
 		Primitives primitives = display.primitives();
 
 		for (int lol = 5; lol < 15; lol++) { 
-			primitives.line(lol, 5, lol + 10, 20, CellAttributes().bg(Color::rgb(ticks / 500.0 + lol / 5.0)));
+			primitives.line(lol, 5, lol + 10, 20, display.attr().bg(Color::rgb(ticks / 500.0 + lol / 5.0)));
 		}
 
 		for (float lol = 1; lol < 20; lol += 3) {
-			primitives.circle(100, 10, lol, CellAttributes().bg(Color::rgb(ticks / (lol * 200.0))));
+			primitives.circle(100, 10, lol, display.attr().bg(Color::rgb(ticks / (lol * 200.0))));
 		}
-		primitives.filledRect(95, 5, 105, 15, CellAttributes().bg(Color::rgb(ticks / 2000.0)));
-		primitives.rect(95, 5, 105, 15, CellAttributes().bg(Color::rgb(ticks / 5000.0)));
+		primitives.filledRect(95, 5, 105, 15, display.attr().bg(Color::rgb(ticks / 2000.0)));
+		primitives.rect(95, 5, 105, 15, display.attr().bg(Color::rgb(ticks / 5000.0)));
 
-		CellAttributes textAttrs;
+		CellAttributes textAttrs(display.attr());
 		textAttrs.fg(0xffffff).bg(0x000000);
 
 		primitives.text(5, 10, text, textAttrs);

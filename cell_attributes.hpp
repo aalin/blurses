@@ -7,6 +7,7 @@
 class CellAttributes {
 	public:
 		CellAttributes() : _fg(0xffffff), _bg(0x000000), _is_italic(false), _is_underline(false) {}
+
 		CellAttributes(const CellAttributes &other)
 			: _fg(other._fg)
 			, _bg(other._bg)
