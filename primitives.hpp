@@ -42,6 +42,36 @@ class Primitives {
 			}
 		}
 
+		void rect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
+			Cell cell(attrs.buildCell());
+
+			if (x1 < x0) { std::swap(x0, x1); }
+			if (y1 < y0) { std::swap(y0, y1); }
+
+			for (uint16_t x = x0; x <= x1; x++) {
+				set(x, y0, cell);
+				set(x, y1, cell);
+			}
+
+			for (uint16_t y = y0; y <= y1; y++) {
+				set(x0, y, cell);
+				set(x1, y, cell);
+			}
+		}
+
+		void filledRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
+			Cell cell(attrs.buildCell());
+
+			if (x1 < x0) { std::swap(x0, x1); }
+			if (y1 < y0) { std::swap(y0, y1); }
+
+			for (uint16_t x = x0; x <= x1; x++) {
+				for (uint16_t y = y0; y <= y1; y++) {
+					set(x, y, cell);
+				}
+			}
+		}
+
 		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
 			Cell cell(attrs.buildCell());
 
