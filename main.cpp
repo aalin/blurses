@@ -12,6 +12,7 @@
 #include "display.hpp"
 #include "cell_attributes.hpp"
 #include "timer.hpp"
+#include "primitives.hpp"
 #include <cmath>
 
 bool running = true;
@@ -74,22 +75,23 @@ int main() {
 
 		display.update();
 		Buffer& buffer = display.getBuffer();
-
 		buffer.setCursorPosition(5 + cursor_position, 10);
 
+		Primitives primitives(display);
+
 		for (int lol = 5; lol < 15; lol++) { 
-			buffer.line(lol, 5, lol + 10, 50, CellAttributes().bg(Color::rgb(time / 500.0 + lol / 5.0)));
+			primitives.line(lol, 5, lol + 10, 20, CellAttributes().bg(Color::rgb(time / 500.0 + lol / 5.0)));
 		}
 
-		buffer.circle(100, 10, 20, CellAttributes().bg(Color::rgb(time / 1000.0)));
+		primitives.circle(100, 10, 20, CellAttributes().bg(Color::rgb(time / 1000.0)));
 
 		CellAttributes textAttrs;
 		textAttrs.fg(0xffffff).bg(0x000000);
 
-		buffer.text(5, 10, text, textAttrs);
-		buffer.text(5, 11, std::to_string(text.length()) + " ", CellAttributes(textAttrs).fg(Color::rgb(time / 200.0)));
-		buffer.text(5, 12, text.substr(0, text.length()), CellAttributes(textAttrs).fg(Color::rgb(time / 400.0)).bg(Color::rgb(time / 800.0)));
-		buffer.text(5, 13, std::to_string(time), textAttrs);
+		primitives.text(5, 10, text, textAttrs);
+		primitives.text(5, 11, std::to_string(text.length()) + " ", CellAttributes(textAttrs).fg(Color::rgb(time / 200.0)));
+		primitives.text(5, 12, text.substr(0, text.length()), CellAttributes(textAttrs).fg(Color::rgb(time / 400.0)).bg(Color::rgb(time / 800.0)));
+		primitives.text(5, 13, std::to_string(time), textAttrs);
 
 		CellAttributes textAttrs2(textAttrs);
 		textAttrs2.fg(Color::rgb(time / 1000.0));
@@ -101,16 +103,16 @@ int main() {
 
 			for (char c : ch.str()) {
 				const std::string s = std::to_string((int)c);
-				buffer.text(30 + j, i, s, textAttrs2);
+				primitives.text(30 + j, i, s, textAttrs2);
 				j += s.length() + 1;
 			}
 
 			i++;
 		}
 
-		buffer.text(30, i, std::string(20, ' '), textAttrs);
+		primitives.text(30, i, std::string(20, ' '), textAttrs);
 
-		buffer.print();
+		display.draw();
 		timer.update();
 	}
 }

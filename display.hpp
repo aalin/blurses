@@ -3,13 +3,15 @@
 
 #include "buffer.hpp"
 
+class Primitives;
+
 class Display {
 	public:
-		Display() : _width(0), _height(0), _buffer(0) {
-			std::cout << "\033[?1047h\033[H\033[J";
-		}
+		Display();
 
 		~Display() {
+			delete _primitives;
+
 			if (_buffer) {
 				delete _buffer;
 			}
@@ -20,6 +22,12 @@ class Display {
 		void redraw() {
 			if (_buffer) {
 				_buffer->redraw();
+			}
+		}
+
+		void draw() {
+			if (_buffer) {
+				_buffer->print();
 			}
 		}
 
@@ -34,8 +42,20 @@ class Display {
 			}
 		}
 
+		uint16_t width() const {
+			return _width;
+		}
+
 		uint16_t height() const {
 			return _height;
+		}
+
+		void set(uint16_t x, uint16_t y, const Cell& cell) {
+			getBuffer().set(x, y, cell);
+		}
+
+		Cell get(uint16_t x, uint16_t y) {
+			return getBuffer().get(x, y);
 		}
 
 		Buffer& getBuffer() {
@@ -47,6 +67,7 @@ class Display {
 		uint16_t _width;
 		uint16_t _height;
 		Buffer *_buffer;
+		Primitives *_primitives;
 
 		void resize(uint16_t width, uint16_t height) {
 			_width = width;
@@ -59,5 +80,12 @@ class Display {
 			this->_buffer = new Buffer(width, height);
 		}
 };
+
+#include "primitives.hpp"
+
+Display::Display() : _width(0), _height(0), _buffer(0) {
+	_primitives = new Primitives(*this);
+	std::cout << "\033[?1047h\033[H\033[J";
+}
 
 #endif
