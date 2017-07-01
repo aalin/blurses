@@ -6,293 +6,419 @@
 #include <stack>
 #include <memory>
 #include "braille_buffer.hpp"
+#include <limits>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp>
 
-class Widget {
-	public:
-		virtual void draw(Display& display, uint16_t x, uint16_t y, bool active) = 0;
-		virtual void handleKey(const Key&) {}
-		virtual void reset() {}
-		virtual utfstring getValue() const = 0;
-		virtual int getCursorPosition() const { return 0; }
-};
+namespace threed {
+	struct vertex {
+		glm::vec3 position;
+		glm::vec4 color;
+		glm::vec3 normal;
 
-typedef std::shared_ptr<Widget> WidgetPtr;
-
-class CheckboxField : public Widget {
-	public:
-		CheckboxField(utfstring label) : _checked(false), _label(label) {}
-
-		utfstring getValue() const {
-			return _checked ? "true" : "false";
+		vertex transform(const glm::mat4 &mat) const {
+			return vertex(*this).transform(mat);
 		}
 
-		void reset() {
-			_checked = 0;
+		vertex& transform(const glm::mat4 &mat) {
+			position = mat * glm::vec4(position, 1.0);
+			// normal = mat * glm::vec4(normal, 1.0);
+			return *this;
+		}
+	};
+
+	struct triangle {
+		triangle(vertex v0, vertex v1, vertex v2) : v0(v0), v1(v1), v2(v2) {}
+
+		vertex v0;
+		vertex v1;
+		vertex v2;
+
+		triangle transform(const glm::mat4 &mat) const {
+			return triangle(*this).transform(mat);
 		}
 
-		void handleKey(const Key& key) {
-			if (key.type == Key::DATA && key.data == " ") {
-				_checked = !_checked;
-			}
+		triangle& transform(const glm::mat4 &mat) {
+			v0.transform(mat);
+			v1.transform(mat);
+			v2.transform(mat);
+			return *this;
+		}
+	};
+
+	struct light {
+		glm::vec3 ambient;
+		float ambientIntensity;
+		glm::vec3 diffuse;
+		float diffuseIntensity;
+		glm::vec3 direction;
+	};
+
+	struct edge {
+		int x;
+		glm::vec4 color;
+		float z;
+		glm::vec3 normal;
+	};
+
+	struct span {
+		bool isValid() const {
+			return edges.size() == 2;
 		}
 
-		void draw(Display& display, uint16_t x, uint16_t y, bool active) {
-			CellAttributes attrs = display.attr().fg(0xffffff);
-			
-			if (active) {
-				display.hideCursor();
-				attrs.bg(0xffffff).fg(0x000000);
-			}
-
-			if (_checked) {
-				display.primitives().text(x, y, "☑ ", attrs);
-			} else {
-				display.primitives().text(x, y, "☐ ", attrs);
-			}
-
-			display.primitives().text(x + 2, y, _label, attrs);
-		}
-
-	private:
-		bool _checked;
-		utfstring _label;
-};
-
-class InputField : public Widget {
-	public:
-		InputField() : _cursor_position(0) { }
-
-		utfstring getValue() const {
-			return _text;
-		}
-
-		int getCursorPosition() const {
-			return _cursor_position;
-		}
-
-		void reset() {
-			_text = "";
-			_cursor_position = 0;
-		}
-
-		void draw(Display& display, uint16_t x, uint16_t y, bool active) {
-			if (active) {
-				display.showCursor();
-				display.setCursorPosition(x + _cursor_position, y);
-			}
-
-			display.primitives().text(x, y, _text, display.attr().fg(active ? 0xffffff : 0xcccccc));
-		}
-
-		void handleKey(const Key& key) {
-			switch (key.type) {
-				case Key::DATA:
-					_text = _text.substr(0, _cursor_position) +
-						key.data +
-						_text.substr(_cursor_position, _text.length() - _cursor_position);
-					_cursor_position++;
-					if (_cursor_position > _text.length()) {
-						_cursor_position = _text.length();
+		void addEdge(edge e) {
+			switch (edges.size()) {
+				case 0:
+					edges.push_back(e);
+					break;
+				case 1:
+					if (e.x > left().x) {
+						edges = {left(), e};
+					} else {
+						edges = {e, left()};
 					}
 					break;
-				case Key::KEY_LEFT:
-					if (_cursor_position > 0) { _cursor_position--; }
-					break;
-				case Key::KEY_HOME:
-					_cursor_position = 0;
-					break;
-				case Key::KEY_END:
-					_cursor_position = _text.length();
-					break;
-				case Key::KEY_RIGHT:
-					if (_cursor_position < _text.length()) { _cursor_position++; }
-					break;
-				case Key::KEY_BACKSPACE:
-					if (_cursor_position > 0) {
-						_text = _text.substr(0, _cursor_position - 1) +
-							_text.substr(_cursor_position, _text.length() - _cursor_position);
-						_cursor_position--;
+				case 2:
+					if (e.x < left().x) {
+						edges = {e, right()};
+					} else if (e.x > right().x) {
+						edges = {left(), e};
 					}
-					break;
-				case Key::KEY_ESCAPE:
-					_text = "";
-					_cursor_position = 0;
-					break;
-				case Key::KEY_DELETE:
-					_text = _text.substr(0, _cursor_position) + _text.substr(_cursor_position + 1, _text.length() - _cursor_position);
-					break;
 			}
 		}
 
-	private:
-		int _cursor_position;
-		utfstring _text;
-};
+		edge left() const {
+			return edges[0];
+		}
+
+		edge right() const {
+			return edges[1];
+		}
+
+		std::vector<edge> edges;
+	};
+
+	struct matrices {
+		matrices() {}
+		matrices(const matrices &m) : projection(m.projection), view(m.view), model(m.model) {}
+		matrices(glm::mat4 projection, glm::mat4 view) : projection(projection), view(view) { }
+		matrices(glm::mat4 projection, glm::mat4 view, glm::mat4 model) : projection(projection), view(view), model(model) { }
+
+		glm::mat4 projection;
+		glm::mat4 view;
+		glm::mat4 model;
+
+		glm::mat4 vp() const {
+			return projection * view;
+		}
+
+		glm::mat4 mvp() const {
+			return vp() * model;
+		}
+	};
+
+	bool inViewport(const glm::vec3 &v, uint16_t width, uint16_t height) {
+		return v.x >= 0 || v.x < width || v.y >= 0 || v.y < height;
+	}
+
+	bool inViewport(const vertex &v, uint16_t width, uint16_t height) {
+		return inViewport(v.position, width, height);
+	}
+
+	bool inViewport(const triangle &t, uint16_t width, uint16_t height) {
+		return 
+			inViewport(t.v0, width, height) ||
+			inViewport(t.v1, width, height) ||
+			inViewport(t.v2, width, height);
+	}
+
+	void addEdge(std::vector<span> &spans, vertex v1, vertex v2, const int offset) {
+		int ydiff = std::ceil(v2.position.y - 0.5) - std::ceil(v1.position.y - 0.5);
+
+		if (ydiff == 0) {
+			return;
+		}
+
+		if (ydiff < 0) {
+			std::swap(v1, v2);
+		}
+
+		int ilen = std::abs(ydiff);
+		float len = std::abs(ydiff);
+
+		glm::vec3 position_step = (v2.position - v1.position) / len;
+		glm::vec4 color_step = (v2.color - v1.color) / len;
+		glm::vec3 normal_step = (v2.normal - v1.normal) / len;
+
+		vertex pos(v1);
+		pos.position += position_step / 2.0f;
+
+		const int ystart = std::ceil(v1.position.y - 0.5);
+		const int yend = std::ceil(v2.position.y - 0.5);
+
+		for (int ypos = ystart; ypos < yend; ypos++) {
+			int yp = ypos - offset;
+
+			if (yp >= 0 && yp < spans.size()) {
+				edge e;
+				e.x = pos.position.x;
+				e.z = pos.position.z;
+				e.color = pos.color;
+				e.normal = pos.normal;
+				spans.at(yp).addEdge(e);
+			}
+
+			pos.position += position_step;
+			pos.color += color_step;
+			pos.normal += normal_step;
+		}
+	}
+
+	template <typename T>
+	T lerp(T a, T b, float t) {
+		return a + (b - a) * t;
+	}
+
+	void draw(Display &display, std::vector<float> &depth_buffer, const std::vector<span> &spans, const int offset, light &l) {
+		int y = offset;
+
+		for (const span s : spans) {
+			if (!s.isValid()) {
+				y++;
+				continue;
+			}
+
+			if (y < 0) {
+				y++;
+				continue;
+			}
+
+
+			edge edge1 = s.left();
+			edge edge2 = s.right();
+
+			float len = (edge2.x - edge1.x);
+
+			for (int x = edge1.x; x < edge2.x; x++) {
+				float pos = (x - edge1.x) / len;
+				float z = lerp(edge1.z, edge2.z, pos);
+
+				const size_t o = y * display.width() + x;
+
+				if (o >= depth_buffer.size()) {
+					continue;
+				}
+
+				if (depth_buffer[o] < z) {
+					continue;
+				}
+
+				depth_buffer[o] = z;
+
+				glm::vec4 c = lerp(edge1.color, edge2.color, pos);
+				glm::vec3 n = lerp(edge1.normal, edge2.normal, pos);
+
+				glm::vec3 fv = n * l.direction;
+				float factor = glm::clamp(-1.0f * (fv.x + fv.y + fv.z), 0.0f, 1.0f);
+				c = c * glm::vec4((l.ambient * l.ambientIntensity) + (factor * l.diffuse * l.diffuseIntensity), 1.0f);
+				c.r = glm::clamp(c.r, 0.0f, 1.0f);
+				c.g = glm::clamp(c.g, 0.0f, 1.0f);
+				c.b = glm::clamp(c.b, 0.0f, 1.0f);
+
+				Cell cell = display.attr().bg(Color(c.r * 255, c.g * 255, c.b * 255)).fg(0xffffff).buildCell();
+				cell.data = " ";
+				display.set(x, y, cell);
+			}
+
+			y++;
+		}
+	}
+
+	void draw(Display &display, std::vector<float> &depth_buffer, triangle tri, matrices mat) {
+		if (!inViewport(tri, display.width(), display.height())) {
+			return;
+		}
+
+		tri.transform(mat.mvp());
+		tri.transform(glm::translate(glm::mat4(1.0), glm::vec3(display.width() / 2.0, display.height() / 2.0, 0.0)));
+		// tri.transform(glm::scale(glm::mat4(1.0), glm::vec3(1.0f, 0.5f, 1.0f)));
+
+		const std::pair<float, float> minmax = std::minmax({
+			tri.v0.position.y,
+			tri.v1.position.y,
+			tri.v2.position.y
+		});
+
+		const int ymin = minmax.first;
+		const int ymax = minmax.second;
+
+		std::vector<span> spans(ymax - ymin);
+
+		addEdge(spans, tri.v0, tri.v1, ymin);
+		addEdge(spans, tri.v1, tri.v2, ymin);
+		addEdge(spans, tri.v2, tri.v0, ymin);
+
+		light l;
+		l.ambient = glm::vec3(1.0, 1.0, 1.0);
+		l.ambientIntensity = 0.2;
+		l.diffuse = glm::vec3(1.0, 1.0, 1.0);
+		l.diffuseIntensity = 0.8;
+		l.direction = mat.model * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f); // mvp * glm::vec4(glm::vec3(0.0, 0.0, 1.0), 1.0);
+
+		draw(display, depth_buffer, spans, ymin, l);
+	}
+
+	glm::mat4 mvp(const glm::mat4 &projection, const glm::mat4 &view, const glm::mat4 &model) {
+		return projection * view * model;
+	}
+
+	vertex makeVertex(float x, float y, float z, float r, float g, float b, float nx = 0.0, float ny = 0.0, float nz = 0.0) {
+		return {
+			glm::vec3(x, y, z),
+			glm::vec4(r, g, b, 1.0),
+			glm::vec3(nx, ny, nz)
+		};
+	}
+
+	void render(Display &display, unsigned long ticks) {
+		std::vector<float> depth_buffer(display.width() * display.height(), std::numeric_limits<float>::infinity());
+
+		matrices m;
+		m.projection = glm::perspective(30.0f, 4.0f / 3.0f, 0.1f, 2000.0f);
+
+		m.view = glm::lookAt(
+			glm::vec3(0.0, 20.0, -20.0),
+			glm::vec3(0.0, 0.0, 0.0),
+			glm::vec3(0.0, 0.0, 1.0)
+		);
+
+		float x = 10.0;
+		
+		std::list<triangle> triangles = {
+			{
+				makeVertex( -x, -x,  x, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0),
+				makeVertex( -x,  x,  x, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0),
+				makeVertex(  x, -x,  x, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0)
+			}, {
+				makeVertex( -x,  x,  x, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0),
+				makeVertex(  x, -x,  x, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0),
+				makeVertex(  x,  x,  x, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0)
+			}, {
+				makeVertex( -x, -x, -x, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0),
+				makeVertex(  x, -x, -x, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0),
+				makeVertex(  x,  x, -x, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0),
+			}, {
+				makeVertex( -x, -x, -x, 1.0, 1.0, 0.0, 0.0, 0.0, -1.0),
+				makeVertex(  x,  x, -x, 0.0, 1.0, 1.0, 0.0, 0.0, -1.0),
+				makeVertex( -x,  x, -x, 1.0, 0.0, 1.0, 0.0, 0.0, -1.0)
+			}, {
+				makeVertex( -x,  x, -x, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0),
+				makeVertex( -x,  x,  x, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+				makeVertex(  x,  x, -x, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+			}, {
+				makeVertex( -x,  x,  x, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+				makeVertex(  x,  x, -x, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+				makeVertex(  x,  x,  x, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0)
+			}, {
+				makeVertex( -x, -x, -x, 1.0, 1.0, 1.0, 0.0, -1.0, 0.0),
+				makeVertex(  x, -x, -x, 1.0, 1.0, 1.0, 0.0, -1.0, 0.0),
+				makeVertex( -x, -x,  x, 1.0, 1.0, 1.0, 0.0, -1.0, 0.0)
+			}, {
+				makeVertex( -x, -x,  x, 1.0, 1.0, 1.0, 0.0, -1.0, 0.0),
+				makeVertex(  x, -x,  x, 1.0, 1.0, 1.0, 0.0, -1.0, 0.0),
+				makeVertex(  x, -x, -x, 1.0, 1.0, 1.0, 0.0, -1.0, 0.0)
+			}, {
+				makeVertex(  x, -x, -x, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0),
+				makeVertex(  x, -x,  x, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0),
+				makeVertex(  x,  x, -x, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0)
+			}, {
+				makeVertex(  x, -x,  x, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0),
+				makeVertex(  x,  x, -x, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0),
+				makeVertex(  x,  x,  x, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0)
+			}, {
+				makeVertex( -x, -x, -x, 1.0, 1.0, 0.0, -0.557, -0.557, -0.557),
+				makeVertex( -x,  x, -x, 1.0, 1.0, 0.0, -0.557,  0.557, -0.557),
+				makeVertex( -x, -x,  x, 1.0, 1.0, 0.0, -0.557, -0.557,  0.557)
+			}, {
+				makeVertex( -x, -x,  x, 1.0, 1.0, 0.0, -0.557, -0.557,  0.557),
+				makeVertex( -x,  x,  x, 1.0, 1.0, 0.0, -0.557,  0.557,  0.557),
+				makeVertex( -x,  x, -x, 1.0, 1.0, 0.0, -0.557,  0.557, -0.557)
+			}
+		};
+
+		glm::mat4 model(1.0);
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+		// model = glm::rotate(model, ticks / 1000.0f, glm::vec3(1.0, 1.0, 0.0));
+		model = glm::rotate(model, ticks / 500.0f, glm::vec3(0.9, 0.75, 1.0));
+		model = glm::scale(model, 1.0f + glm::vec3(std::sin(ticks / 750.0f) * 0.5f));
+		m.model = model;
+
+		for (const triangle &t : triangles) {
+			draw(display, depth_buffer, t, m);
+		}
+
+		/*
+		m.model = glm::translate(glm::mat4(1.0f), glm::vec3(50.0f, -30.0f, 0.0f));
+		m.model = glm::rotate(m.model, ticks / 500.0f, glm::vec3(0.5, 0.0, 1.0));
+		m.model = glm::rotate(m.model, ticks / 1000.0f, glm::vec3(0.0, 1.0, 0.0));
+		m.model = glm::scale(m.model, glm::vec3(1.2f));
+
+		const int c = 10;
+		const float square = c * c;
+
+		for (int y = -c; y < c; y++) {
+			for (int x = -c; x < c; x++) {
+				for (int z = -c; z < c; z++) {
+					const glm::vec3 point = m.mvp() * glm::vec4(x, y, z, 1.0);
+					const Color color(x * x / square * 255, y * y / square * 255, z * z / square * 255);
+
+					const size_t o = point.y * display.width() + point.x;
+
+					if (point.z >= depth_buffer[o]) {
+						continue;
+					}
+
+					depth_buffer[o] = point.z;
+					display.set(point.x, point.y, display.attr().bg(color).buildCell());
+				}
+			}
+		}
+		*/
+	}
+}
 
 class State {
 	public:
-		State() : _braille_buffer(80, 40) {
-			_widgets.push_back(std::make_shared<InputField>());
-			_widgets.push_back(std::make_shared<InputField>());
-			_widgets.push_back(std::make_shared<InputField>());
-			_widgets.push_back(std::make_shared<CheckboxField>("foo"));
-			_widgets.push_back(std::make_shared<CheckboxField>("bar"));
-			_index = 0;
-		}
+		State() { }
+		~State() { }
 
-		void handleKey(Display &display, const Key& key, unsigned long ticks) {
-			switch (key.type) {
-				case Key::KEY_RETURN:
-					handleReturn();
-					break;
-				case Key::KEY_REDRAW:
-					display.redraw();
-					break;
-				case Key::KEY_TAB:
-					_index = (_index + 1) % _widgets.size();
-					break;
-				case Key::KEY_TAB_BACK:
-					_index = (_index + _widgets.size() - 1) % _widgets.size();
-					break;
-				default:
-					_widgets[_index]->handleKey(key);
-			}
-		}
+		virtual void handleKey(Display &display, const Key& key, unsigned long ticks) = 0;
+		virtual void update(unsigned long ticks) = 0;
+		virtual void draw(Display& display) = 0;
+};
 
-		void update(unsigned long ticks) {
-			_t = ticks;
+typedef std::shared_ptr<State> StatePtr;
 
-			_braille_buffer.clear();
+class MainState : public State {
+	void handleKey(Display &display, const Key& key, unsigned long ticks) {
+	}
 
-			for (int i = 0; i < 5; i++) {
-				uint16_t x = 40 + i * 5 + std::pow(std::sin((ticks + i * 500) / 2234.0), 2) * 20.0;
-				uint16_t y = 10 + std::sin((ticks + i * 500) / 2234.0) * 5;
-				float radius = 1 + std::pow(std::sin((ticks + i * 500) / 1000.0), 2) * 25.0;
-				_braille_buffer.circle(x, y, radius);
-			}
+	void update(unsigned long ticks) {
+		_t = ticks;
+	}
 
-			float x = 30 + std::sin(_t / 200.0) * 5.0;
-			_braille_buffer.circle(x, 20, 20);
-			_braille_buffer.circle(x, 20, 22);
+	void draw(Display& display) {
+		threed::render(display, _t);
+	}
 
-			for (int i = 0; i < 12; i++) {
-				float a = i / 12.0;
-				float radius = i % 3 == 0 ? 15.0 : 17;
-				float x0 = x + std::sin(a * M_PI * 2) * radius;
-				float y0 = 20 + std::cos(a * M_PI * 2) * radius;
-				float x1 = x + std::sin(a * M_PI * 2) * 20.0;
-				float y1 = 20 + std::cos(a * M_PI * 2) * 20.0;
-				_braille_buffer.line(x0, y0, x1, y1);
-			}
-
-			_braille_buffer.line(
-				x,
-				20,
-				std::round(x + std::cos(ticks / 1000.0 * M_PI) * 20),
-				std::round(x + std::sin(ticks / 1000.0 * M_PI) * 20)
-			);
-
-			_braille_buffer.line(
-				20,
-				20,
-				std::round(x + std::cos(ticks / 36000.0 * M_PI) * 20),
-				std::round(x + std::sin(ticks / 36000.0 * M_PI) * 20)
-			);
-		}
-
-		void draw(Display& display) {
-			auto attrs = display.attr().fg(0xcccccc);
-			auto attrs2 = display.attr().fg(0xffffff);
-
-			int asd = 100 + std::sin(_t / 1500.0) * 10.0;
-			int asdf = 5 + std::pow(std::sin(_t / 1500.0), 2) * 10.0;
-			int h = 5 + std::pow(std::sin(_t / 1000.0), 2) * 10.0;
-			int w = 2 + std::pow(std::sin(_t / 1337.0), 2) * 5.0;
-
-			display.primitives().circle(asd, 15, asdf, display.attr().bg(Color::hsv(_t / 20.0, 1.0, 0.8)));
-			display.primitives().filledRect(100 - w, asdf, 100 + w, asdf + h, display.attr().bg(Color::hsv(_t / 30.0, 1.0, 0.8)));
-			display.primitives().rect(100 - w, asdf, 100 + w, asdf + h, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
-
-			for (size_t i = 0; i < _widgets.size(); i++) {
-				display.primitives().text(0, 10 + i, "input " + std::to_string(i + 1) + ": ", i == _index ? attrs : attrs2);
-				_widgets[i]->draw(display, 9, 10 + i, i == _index);
-			}
-
-			auto textAttrs = display.attr()
-				.fg(Color::hsv((_t + _index * 2000) / 10.0, 1.0, 1.0))
-				.bg(Color::hsv((_t + _index * 2000) / 10.0, 1.0, 0.5));
-
-			int j = 0;
-
-			for (utfstring text : _texts) {
-				display.primitives().text(20, j++, text, textAttrs);
-			}
-
-			auto textAttrs2 = display.attr().fg(0x0099cc);
-			auto textAttrs3 = display.attr().fg(0xffcc00);
-
-			utfstring text = _widgets[_index]->getValue();
-			int pos = _widgets[_index]->getCursorPosition();
-			display.primitives().text(50, 0, text.substr(0, pos), textAttrs2);
-			display.primitives().text(50 + pos, 0, text.substr(pos, text.length() - pos), textAttrs3);
-
-			display.primitives().text(50, 1, std::to_string(text.find_offset2(0)), textAttrs);
-			display.primitives().text(50, 2, std::to_string(text.find_offset2(1)), textAttrs);
-			display.primitives().text(50, 3, std::to_string(text.find_offset2(2)), textAttrs);
-
-			int k = 0;
-
-			for (auto line : _braille_buffer.lines()) {
-				int l = 0;
-
-				for (auto ch : line) {
-					float bg = std::sin(l / 20.0) * (10 + std::cos(_t / 500.0)) + std::cos(k / 20.0) * 20.0;
-					CellAttributes attr = display.attr().bg(Color::hsv(bg * bg, 1.0, 0.5)).fg(0xffffff);
-					display.primitives().putchar(10 + l, 20 + k, ch, attr);
-					l++;
-				}
-
-				k++;
-			}
-			textAttrs.fg(0xffffff);
-
-			int i = 0;
-
-			for (utfstring ch : text.chars()) {
-				int j = 0;
-
-				for (char c : ch.str()) {
-					const std::string s = std::to_string((int)c);
-					display.primitives().text(30 + j, i, s, textAttrs);
-					j += s.length() + 1;
-				}
-
-				i++;
-			}
-		}
-
-	private:
-		std::vector<WidgetPtr> _widgets;
-		BrailleBuffer _braille_buffer;
-		unsigned long _t;
-		unsigned int _index;
-		std::list<utfstring> _texts;
-
-		void handleReturn() {
-			utfstring text = _widgets[_index]->getValue();
-
-			if (text.length() > 0) {
-				_texts.push_back(text);
-			}
-
-			_widgets[_index]->reset();
-		}
+	unsigned long _t;
 };
 
 class Application {
 	public:
 		Application() {
-			pushState(new State());
+			pushState(std::make_shared<MainState>());
 		}
 
 		void run() {
@@ -308,7 +434,7 @@ class Application {
 			});
 		}
 
-		void pushState(State* state) {
+		void pushState(StatePtr state) {
 			_states.push(state);
 		}
 
@@ -317,7 +443,7 @@ class Application {
 		}
 
 	private:
-		std::stack<State*> _states;
+		std::stack<StatePtr> _states;
 
 		State& currentState() {
 			return *_states.top();
