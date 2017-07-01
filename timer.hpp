@@ -2,6 +2,7 @@
 #define TIMER_HPP
 
 #include <chrono>
+#include <thread>
 
 class Timer {
 	public:

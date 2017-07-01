@@ -1,6 +1,8 @@
 #ifndef PRIMIVES_HPP
 #define PRIMIVES_HPP
 
+#include <functional>
+#include "display.hpp"
 #include "buffer.hpp"
 #include "utfstring.hpp"
 

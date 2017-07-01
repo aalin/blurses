@@ -1,42 +1,15 @@
-#include <string>
-#include <vector>
 #include <iostream>
-#include <locale>
-#include <codecvt>
 #include <sys/ioctl.h>
-#include <thread>
-#include <csignal>
-#include <functional>
-#include "input.hpp"
 #include "utfstring.hpp"
-#include "display.hpp"
 #include "cell_attributes.hpp"
-#include "timer.hpp"
-#include "primitives.hpp"
-#include <cmath>
-
-bool running = true;
-
-void handleSigint(int signum __attribute__((unused))) {
-	running = false;
-}
-
-const char* BACKSPACE = "\x7f";
-const char* REDRAW = "\x0c";
+#include "blurses.hpp"
 
 int main() {
-	Display display;
-	Input input;
-	Timer timer;
-	input.run();
-
-	std::signal(SIGINT, &handleSigint);
-
 	utfstring text("");
 	unsigned int cursor_position = 0;
 
-	while (running) {
-		for (Key &key : input.getBuffer()) {
+	Blurses::start([&](Display &display, std::list<Key> keys, unsigned long ticks) -> bool {
+		for (Key &key : keys) {
 			switch (key.type) {
 				case Key::DATA:
 					text = text.substr(0, cursor_position) + key.data + text.substr(cursor_position, text.length() - cursor_position);
@@ -57,8 +30,8 @@ int main() {
 					}
 					break;
 				case Key::KEY_BACKSPACE:
-					text = text.substr(0, cursor_position - 1) + text.substr(cursor_position, text.length() - cursor_position);
 					if (cursor_position > 0) {
+						text = text.substr(0, cursor_position - 1) + text.substr(cursor_position, text.length() - cursor_position);
 						cursor_position--;
 					}
 					break;
@@ -71,30 +44,30 @@ int main() {
 			}
 		}
 
-		unsigned long time = timer.getTime();
-
-		display.update();
-
 		display.setCursorPosition(5 + cursor_position, 10);
 
 		Primitives primitives = display.primitives();
 
 		for (int lol = 5; lol < 15; lol++) { 
-			primitives.line(lol, 5, lol + 10, 20, CellAttributes().bg(Color::rgb(time / 500.0 + lol / 5.0)));
+			primitives.line(lol, 5, lol + 10, 20, CellAttributes().bg(Color::rgb(ticks / 500.0 + lol / 5.0)));
 		}
 
-		primitives.circle(100, 10, 20, CellAttributes().bg(Color::rgb(time / 1000.0)));
+		for (float lol = 1; lol < 20; lol += 3) {
+			primitives.circle(100, 10, lol, CellAttributes().bg(Color::rgb(ticks / (lol * 200.0))));
+		}
+		primitives.filledRect(95, 5, 105, 15, CellAttributes().bg(Color::rgb(ticks / 2000.0)));
+		primitives.rect(95, 5, 105, 15, CellAttributes().bg(Color::rgb(ticks / 5000.0)));
 
 		CellAttributes textAttrs;
 		textAttrs.fg(0xffffff).bg(0x000000);
 
 		primitives.text(5, 10, text, textAttrs);
-		primitives.text(5, 11, std::to_string(text.length()) + " ", CellAttributes(textAttrs).fg(Color::rgb(time / 200.0)));
-		primitives.text(5, 12, text.substr(0, text.length()), CellAttributes(textAttrs).fg(Color::rgb(time / 400.0)).bg(Color::rgb(time / 800.0)));
-		primitives.text(5, 13, std::to_string(time), textAttrs);
+		primitives.text(5, 11, std::to_string(text.length()) + " ", CellAttributes(textAttrs).fg(Color::rgb(ticks / 200.0)));
+		primitives.text(5, 12, text.substr(0, text.length()), CellAttributes(textAttrs).fg(Color::rgb(ticks / 400.0)).bg(Color::rgb(ticks / 800.0)));
+		primitives.text(5, 13, std::to_string(ticks), textAttrs);
 
 		CellAttributes textAttrs2(textAttrs);
-		textAttrs2.fg(Color::rgb(time / 1000.0));
+		textAttrs2.fg(Color::rgb(ticks / 1000.0));
 
 		int i = 0;
 
@@ -112,7 +85,6 @@ int main() {
 
 		primitives.text(30, i, std::string(20, ' '), textAttrs);
 
-		display.draw();
-		timer.update();
-	}
+		return true;
+	});
 }
