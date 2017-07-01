@@ -4,6 +4,7 @@
 #include <string>
 #include "color.hpp"
 
+namespace Blurses {
 struct Cell {
 	Cell() : Cell(RealColor::off(), RealColor::off(), " ", false, false) { }
 
@@ -42,6 +43,7 @@ struct Cell {
 	bool operator!=(const Cell &other) const {
 		return !(other == *this);
 	}
+};
 };
 
 #endif

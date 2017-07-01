@@ -11,6 +11,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+using Blurses::Display;
+using Blurses::Key;
+
 namespace threed {
 	struct vertex {
 		glm::vec3 position;
@@ -226,9 +229,11 @@ namespace threed {
 				c.g = glm::clamp(c.g, 0.0f, 1.0f);
 				c.b = glm::clamp(c.b, 0.0f, 1.0f);
 
-				Cell cell = display.attr().bg(Color(c.r * 255, c.g * 255, c.b * 255)).fg(0xffffff).buildCell();
-				cell.data = " ";
-				display.set(x, y, cell);
+				display.set(
+					x,
+					y,
+					display.attr().bg(Blurses::Color(c.r * 255, c.g * 255, c.b * 255)).fg(0xffffff).buildCell()
+				);
 			}
 
 			y++;
@@ -371,7 +376,7 @@ namespace threed {
 			for (int x = -c; x < c; x++) {
 				for (int z = -c; z < c; z++) {
 					const glm::vec3 point = m.mvp() * glm::vec4(x, y, z, 1.0);
-					const Color color(x * x / square * 255, y * y / square * 255, z * z / square * 255);
+					const Blurses::Color color(x * x / square * 255, y * y / square * 255, z * z / square * 255);
 
 					const size_t o = point.y * display.width() + point.x;
 

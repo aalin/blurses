@@ -6,6 +6,7 @@
 #include <iterator>
 #include "vendor/utfcpp/source/utf8.h"
 
+namespace Blurses {
 class utfstring {
 	public:
 		utfstring() : _str("") { }
@@ -177,6 +178,7 @@ class utfstring {
 		friend std::ostream& operator<<(std::ostream& stream, const utfstring& str) {
 			return stream << str.str();
         }
+};
 };
 
 #endif

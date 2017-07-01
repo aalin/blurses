@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cmath>
 
+namespace Blurses {
 struct RealColor {
 	enum TYPE {
 		TrueColor,
@@ -295,6 +296,7 @@ class ColorWrapper {
 			return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 		}
 
+};
 };
 
 #endif

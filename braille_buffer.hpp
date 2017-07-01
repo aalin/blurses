@@ -8,6 +8,7 @@
 #include "utfstring.hpp"
 #include "graphics.hpp"
 
+namespace Blurses {
 class BrailleBuffer {
 	public:
 		BrailleBuffer(uint16_t width, uint16_t height)
@@ -83,6 +84,7 @@ class BrailleBuffer {
 		const uint16_t _width;
 		const uint16_t _height;
 		std::vector<bool> _buffer;
+};
 };
 
 #endif

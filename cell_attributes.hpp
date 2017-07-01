@@ -4,6 +4,7 @@
 #include "color.hpp"
 #include "cell.hpp"
 
+namespace Blurses {
 class CellAttributes {
 	public:
 		CellAttributes(const ColorWrapper &color)
@@ -72,6 +73,7 @@ class CellAttributes {
 		bool _isset_bg;
 		bool _isset_is_italic;
 		bool _isset_is_underline;
+};
 };
 
 #endif

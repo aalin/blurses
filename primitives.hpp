@@ -7,6 +7,7 @@
 #include "utfstring.hpp"
 #include "graphics.hpp"
 
+namespace Blurses {
 class Primitives {
 	public:
 		Primitives(Display& buffer) : _display(buffer) { }
@@ -90,6 +91,7 @@ class Primitives {
 		void set(uint16_t x, uint16_t y, const Cell& cell) const {
 			_display.set(x, y, cell);
 		}
+};
 };
 
 #endif

@@ -3,6 +3,7 @@
 
 #include <string>
 
+namespace Blurses {
 struct Key {
 	enum TYPE {
 		DATA,
@@ -27,6 +28,7 @@ struct Key {
 
 	Key::TYPE type;
 	std::string data;
+};
 };
 
 #endif

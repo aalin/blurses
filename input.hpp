@@ -10,6 +10,7 @@
 #include "utfstring.hpp"
 #include "key.hpp"
 
+namespace Blurses {
 class Input {
 	class InputState {
 		public:
@@ -192,6 +193,7 @@ class Input {
 						return false;
 			}
 		}
+};
 };
 
 #endif

@@ -6,6 +6,7 @@
 #include "cell.hpp"
 #include "cell_attributes.hpp"
 
+namespace Blurses {
 class Buffer {
 	typedef std::pair<uint16_t, uint16_t> Range;
 
@@ -201,6 +202,7 @@ class Buffer {
 		uint16_t round(float x) {
 			return static_cast<uint16_t>(x + 0.5);
 		}
+};
 };
 
 #endif

@@ -7,6 +7,7 @@
 #include "display.hpp"
 #include "input.hpp"
 
+namespace Blurses {
 class Blurses {
 	public:
 		Blurses() {
@@ -54,7 +55,18 @@ class Blurses {
 		Input _input;
 		Timer _timer;
 };
+};
 
-Blurses *Blurses::_instance;
+namespace Blurses {
+	void handleSigint(int signum) {
+		Blurses::Blurses::handleSigint(signum);
+	}
+
+	void start(std::function<bool(Display&, std::list<Key>, unsigned long)> fn) {
+		::Blurses::Blurses::start(fn);
+	};
+}
+
+Blurses::Blurses *Blurses::Blurses::_instance;
 
 #endif

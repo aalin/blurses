@@ -12,6 +12,8 @@ bool isCombining(int cp) {
 }
 
 int test() {
+	using Blurses::utfstring;
+
 	/*
 	Input input;
 	input.run();

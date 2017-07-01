@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 
+namespace Blurses {
 class Timer {
 	public:
 		Timer() : _start_at(std::chrono::system_clock::now()) { }
@@ -19,6 +20,7 @@ class Timer {
 
 	private:
 		std::chrono::time_point<std::chrono::system_clock> _start_at;
+};
 };
 
 #endif

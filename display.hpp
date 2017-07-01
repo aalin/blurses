@@ -4,6 +4,7 @@
 #include "buffer.hpp"
 #include "cell_attributes.hpp"
 
+namespace Blurses {
 class Primitives;
 
 class Display {
@@ -99,11 +100,13 @@ class Display {
 			return *_buffer;
 		}
 };
+};
 
 #include "primitives.hpp"
 
+namespace Blurses {
 Display::Display() : _width(0), _height(0), _buffer(0), _showCursor(true) {
-	_primitives = new Primitives(*this);
+	_primitives = new Blurses::Primitives(*this);
 	std::cout << "\033[?1047h\033[H\033[J";
 }
 
@@ -116,5 +119,6 @@ Display::~Display() {
 
 	std::cout << "\033[?25h\033[?1047l\033[2J" << std::flush;
 }
+};
 
 #endif
