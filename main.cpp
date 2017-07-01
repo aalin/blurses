@@ -4,13 +4,44 @@
 #include "cell_attributes.hpp"
 #include "blurses.hpp"
 #include <stack>
+#include <memory>
 
-class CheckboxField {
+class Widget {
 	public:
-		CheckboxField() : _checked(false) {}
+		virtual void draw(Display& display, uint16_t x, uint16_t y, bool active) = 0;
+		virtual void handleKey(const Key&) {}
+		virtual void reset() {}
+		virtual utfstring getValue() const = 0;
+		virtual int getCursorPosition() const { return 0; }
+};
 
-		void draw(Display& display, uint16_t x, uint16_t y, utfstring text, bool active) {
-			CellAttributes attrs = display.attr().fg(active ? 0xffffff : 0xcccccc);
+typedef std::shared_ptr<Widget> WidgetPtr;
+
+class CheckboxField : public Widget {
+	public:
+		CheckboxField(utfstring label) : _checked(false), _label(label) {}
+
+		utfstring getValue() const {
+			return _checked ? "1" : "0";
+		}
+
+		void reset() {
+			_checked = 0;
+		}
+
+		void handleKey(const Key& key) {
+			if (key.type == Key::DATA && key.data == " ") {
+				_checked = !_checked;
+			}
+		}
+
+		void draw(Display& display, uint16_t x, uint16_t y, bool active) {
+			CellAttributes attrs = display.attr().fg(0xffffff);
+			
+			if (active) {
+				display.setCursorPosition(0, 0);
+				attrs.bg(0xffffff).fg(0x000000);
+			}
 
 			if (_checked) {
 				display.primitives().text(x, y, "☑ ", attrs);
@@ -18,18 +49,19 @@ class CheckboxField {
 				display.primitives().text(x, y, "☐ ", attrs);
 			}
 
-			display.primitives().text(x + 2, y, text, attrs);
+			display.primitives().text(x + 2, y, _label, attrs);
 		}
 
 	private:
 		bool _checked;
+		utfstring _label;
 };
 
-class InputField {
+class InputField : public Widget {
 	public:
 		InputField() : _cursor_position(0) { }
 
-		utfstring getText() {
+		utfstring getValue() const {
 			return _text;
 		}
 
@@ -42,7 +74,7 @@ class InputField {
 			_cursor_position = 0;
 		}
 
-		void draw(Display& display, uint16_t x, uint16_t y, unsigned long t, bool active) {
+		void draw(Display& display, uint16_t x, uint16_t y, bool active) {
 			if (active) {
 				display.setCursorPosition(x + _cursor_position, y);
 			}
@@ -98,7 +130,11 @@ class InputField {
 class State {
 	public:
 		State() {
-			_inputs.assign(3, InputField());
+			_widgets.push_back(std::make_shared<InputField>());
+			_widgets.push_back(std::make_shared<InputField>());
+			_widgets.push_back(std::make_shared<InputField>());
+			_widgets.push_back(std::make_shared<CheckboxField>("foo"));
+			_widgets.push_back(std::make_shared<CheckboxField>("bar"));
 			_index = 0;
 		}
 
@@ -111,13 +147,13 @@ class State {
 					display.redraw();
 					break;
 				case Key::KEY_TAB:
-					_index = (_index + 1) % _inputs.size();
+					_index = (_index + 1) % _widgets.size();
 					break;
 				case Key::KEY_TAB_BACK:
-					_index = (_index + _inputs.size() - 1) % _inputs.size();
+					_index = (_index + _widgets.size() - 1) % _widgets.size();
 					break;
 				default:
-					_inputs[_index].handleKey(key);
+					_widgets[_index]->handleKey(key);
 			}
 		}
 
@@ -135,9 +171,9 @@ class State {
 			display.primitives().filledRect(95, 5, 105, 15, display.attr().bg(Color::rgb(_t / 2000.0)));
 			display.primitives().rect(95, 5, 105, 15, display.attr().bg(Color::rgb(_t / 5000.0)));
 
-			for (size_t i = 0; i < _inputs.size(); i++) {
+			for (size_t i = 0; i < _widgets.size(); i++) {
 				display.primitives().text(0, 10 + i, "input: ", i == _index ? attrs : attrs2);
-				_inputs[i].draw(display, 7, 10 + i, _t + i * 1000, i == _index);
+				_widgets[i]->draw(display, 7, 10 + i, i == _index);
 			}
 
 			CellAttributes textAttrs;
@@ -154,8 +190,8 @@ class State {
 			CellAttributes textAttrs3(textAttrs);
 			textAttrs3.fg(0xffcc00);
 
-			utfstring text = _inputs[_index].getText();
-			int pos = _inputs[_index].getCursorPosition();
+			utfstring text = _widgets[_index]->getValue();
+			int pos = _widgets[_index]->getCursorPosition();
 			int i = 0;
 			display.primitives().text(50, 0, text.substr(0, pos), textAttrs2);
 			display.primitives().text(50 + pos, 0, text.substr(pos, text.length() - pos), textAttrs3);
@@ -179,19 +215,19 @@ class State {
 		}
 
 	private:
-		std::vector<InputField> _inputs;
+		std::vector<WidgetPtr> _widgets;
 		unsigned long _t;
 		unsigned int _index;
 		std::list<utfstring> _texts;
 
 		void handleReturn() {
-			utfstring text = _inputs[_index].getText();
+			utfstring text = _widgets[_index]->getValue();
 
 			if (text.length() > 0) {
 				_texts.push_back(text);
 			}
 
-			_inputs[_index].reset();
+			_widgets[_index]->reset();
 		}
 };
 

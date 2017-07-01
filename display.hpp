@@ -61,12 +61,22 @@ class Display {
 			 return CellAttributes();
 		 }
 
+		 void showCursor() {
+			 // TODO: _show_cursor is not used anywhere.
+			 _show_cursor = true;
+		 }
+
+		 void hideCursor() {
+			 _show_cursor = false;
+		 }
+
 	private:
 		struct winsize _winsize;
 		uint16_t _width;
 		uint16_t _height;
 		Buffer *_buffer;
 		Primitives *_primitives;
+		bool _show_cursor;
 
 		void resize(uint16_t width, uint16_t height) {
 			_width = width;

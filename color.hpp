@@ -48,20 +48,25 @@ struct Color {
 
 class AbstractColor {
 	public:
-		virtual std::string fg(const Color &rgb, const std::string &str) const = 0;
-		virtual std::string bg(const Color &rgb, const std::string &str) const = 0;
+		virtual std::string fg(const Color &rgb) const = 0;
+		virtual std::string bg(const Color &rgb) const = 0;
+		virtual uint32_t value(const Color &rgb) const = 0;
 
 		virtual ~AbstractColor() {}
 };
 
 class TrueColor : public AbstractColor {
 	public:
-		std::string fg(const Color &rgb, const std::string &str) const {
-			return "\033[38;2;" + ansiTrueColor(rgb) + "m" + str;
+		std::string fg(const Color &rgb) const {
+			return "\033[38;2;" + ansiTrueColor(rgb) + "m";
 		}
 
-		std::string bg(const Color &rgb, const std::string &str) const {
-			return "\033[48;2;" + ansiTrueColor(rgb) + "m" + str;
+		std::string bg(const Color &rgb) const {
+			return "\033[48;2;" + ansiTrueColor(rgb) + "m";
+		}
+
+		uint32_t value(const Color &rgb) const {
+			return rgb.r << 16 | rgb.g << 8 | rgb.b;
 		}
 
 	private:
@@ -91,16 +96,20 @@ const Color COLORS[] = {
 
 class Color16 : public AbstractColor {
 	public:
-		std::string fg(const Color &rgb, const std::string &str) const {
+		std::string fg(const Color &rgb) const {
 			const uint16_t color = colorIndex(rgb);
 			const uint16_t base = color < 8 ? 30 : 90;
-			return "\033[" + std::to_string(base + (color % 8)) + "m" + str;
+			return "\033[" + std::to_string(base + (color % 8)) + "m";
 		}
 
-		std::string bg(const Color &rgb, const std::string &str) const {
+		std::string bg(const Color &rgb) const {
 			const uint16_t color = colorIndex(rgb);
 			const uint16_t base = color < 8 ? 40 : 100;
-			return "\033[" + std::to_string(base + (color % 8)) + "m" + str;
+			return "\033[" + std::to_string(base + (color % 8)) + "m";
+		}
+
+		uint32_t value(const Color& rgb) const {
+			return colorIndex(rgb);
 		}
 
 	private:
@@ -123,12 +132,16 @@ class Color16 : public AbstractColor {
 
 class Color256 : public AbstractColor {
 	public:
-		std::string fg(const Color &rgb, const std::string &str) const {
-			return "\033[38;5;" + std::to_string(this->ansi256(rgb)) + "m" + str;
+		std::string fg(const Color &rgb) const {
+			return "\033[38;5;" + std::to_string(this->ansi256(rgb)) + "m";
 		}
 
-		std::string bg(const Color &rgb, const std::string &str) const {
-			return "\033[48;5;" + std::to_string(this->ansi256(rgb)) + "m" + str;
+		std::string bg(const Color &rgb) const {
+			return "\033[48;5;" + std::to_string(this->ansi256(rgb)) + "m";
+		}
+
+		uint32_t value(const Color& rgb) const {
+			return ansi256(rgb);
 		}
 
 	private:
@@ -172,8 +185,9 @@ class ColorWrapper {
 			delete _color;
 		}
 
-		std::string fg(const Color &rgb, const std::string &str) const { return _color->fg(rgb, str); }
-		std::string bg(const Color &rgb, const std::string &str) const { return _color->bg(rgb, str); }
+		std::string fg(const Color &rgb) const { return _color->fg(rgb); }
+		std::string bg(const Color &rgb) const { return _color->bg(rgb); }
+		uint32_t value(const Color &rgb) const { return _color->value(rgb); }
 
 	private:
 		AbstractColor *_color;

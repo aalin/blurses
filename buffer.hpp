@@ -95,8 +95,14 @@ class Buffer {
 
 			std::string data = cell.data;
 
-			if (prev == 0 || cell.bg != prev->bg) { data = _color.bg(cell.bg, data); }
-			if (prev == 0 || cell.fg != prev->fg) { data = _color.fg(cell.fg, data); }
+			if (data.length() == 1 && data[0] < 32) {
+				const char value = 0x80 + data[0];
+				data = "\xe2\x90";
+				data += value;
+			}
+
+			if (prev == 0 || cell.bg != prev->bg) { data = _color.bg(cell.bg) + data; }
+			if (prev == 0 || cell.fg != prev->fg) { data = _color.fg(cell.fg) + data; }
 
 			str += data;
 		}
