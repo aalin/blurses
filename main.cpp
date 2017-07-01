@@ -3,8 +3,183 @@
 #include "utfstring.hpp"
 #include "cell_attributes.hpp"
 #include "blurses.hpp"
+#include <stack>
+
+class InputField {
+	public:
+		InputField() : _cursor_position(0) { }
+
+		utfstring getText() {
+			return _text;
+		}
+
+		void reset() {
+			_text = "";
+			_cursor_position = 0;
+		}
+
+		void draw(Display& display, uint16_t x, uint16_t y, unsigned long t, bool active) {
+			if (active) {
+				display.setCursorPosition(x + _cursor_position, y);
+			}
+			display.primitives().text(x, y, _text + " ", display.attr().fg(Color::rgb(t / 1000.0)));
+		}
+
+		void handleKey(const Key& key) {
+			switch (key.type) {
+				case Key::DATA:
+					_text = _text.substr(0, _cursor_position) +
+						key.data +
+						_text.substr(_cursor_position, _text.length() - _cursor_position);
+					_cursor_position++;
+					if (_cursor_position > _text.length()) {
+						_cursor_position = _text.length();
+					}
+					break;
+				case Key::KEY_LEFT:
+					if (_cursor_position > 0) { _cursor_position--; }
+					break;
+				case Key::KEY_RIGHT:
+					if (_cursor_position < _text.length()) { _cursor_position++; }
+					break;
+				case Key::KEY_BACKSPACE:
+					if (_cursor_position > 0) {
+						_text = _text.substr(0, _cursor_position - 1) +
+							_text.substr(_cursor_position, _text.length() - _cursor_position);
+						_cursor_position--;
+					}
+					break;
+				case Key::KEY_DELETE:
+					_text = _text.substr(0, _cursor_position) + _text.substr(_cursor_position + 1, _text.length() - _cursor_position);
+					break;
+			}
+		}
+
+	private:
+		int _cursor_position;
+		utfstring _text;
+};
+
+class State {
+	public:
+		State() {
+			_inputs.assign(3, InputField());
+			_index = 0;
+		}
+
+		void handleKey(Display &display, const Key& key, unsigned long ticks) {
+			switch (key.type) {
+				case Key::KEY_RETURN:
+					_texts.push_back(_inputs[_index].getText());
+					_inputs[_index].reset();
+					break;
+				case Key::KEY_REDRAW:
+					display.redraw();
+					break;
+				case Key::KEY_TAB:
+					_index = (_index + 1) % _inputs.size();
+					break;
+				case Key::KEY_TAB_BACK:
+					if (_index > 0) {
+						_index--;
+					} else {
+						_index = _inputs.size() - 1;
+					}
+					break;
+				default:
+					_inputs[_index].handleKey(key);
+			}
+		}
+
+		void update(unsigned long ticks) {
+			_t = ticks;
+		}
+
+		void draw(Display& display) {
+			CellAttributes attrs;
+			attrs.fg(0xcccccc);
+			CellAttributes attrs2(attrs);
+			attrs.fg(0xffffff).bg(0x666666);
+
+			for (size_t i = 0; i < _inputs.size(); i++) {
+				display.primitives().text(0, 10 + i, "input: ", i == _index ? attrs : attrs2);
+				_inputs[i].draw(display, 7, 10 + i, _t + i * 1000, i == _index);
+			}
+
+			CellAttributes textAttrs;
+			textAttrs.fg(Color::rgb((_t + _index * 1000) / 1000.0));
+
+			int j = 0;
+
+			for (utfstring text : _texts) {
+				display.primitives().text(20, j++, text, textAttrs);
+			}
+
+			int i = 0;
+
+			for (utfstring ch : _inputs[_index].getText().chars()) {
+				int j = 0;
+
+				for (char c : ch.str()) {
+					const std::string s = std::to_string((int)c);
+					display.primitives().text(30 + j, i, s, textAttrs);
+					j += s.length() + 1;
+				}
+
+				i++;
+			}
+
+			display.primitives().text(30, i, std::string(20, ' '), textAttrs);
+		}
+
+	private:
+		std::vector<InputField> _inputs;
+		unsigned long _t;
+		unsigned int _index;
+		std::list<utfstring> _texts;
+};
+
+class Application {
+	public:
+		Application() {
+			pushState(new State());
+		}
+
+		void run() {
+			Blurses::start([&](Display &display, std::list<Key> keys, unsigned long ticks) -> bool {
+				for (const Key &key : keys) {
+					currentState().handleKey(display, key, ticks);
+				}
+
+				currentState().update(ticks);
+				currentState().draw(display);
+
+				return true;
+			});
+		}
+
+		void pushState(State* state) {
+			_states.push(state);
+		}
+
+		void popState() {
+			_states.pop();
+		}
+
+	private:
+		std::stack<State*> _states;
+
+		State& currentState() {
+			return *_states.top();
+		}
+};
 
 int main() {
+	Application app;
+	app.run();
+}
+
+int main2() {
 	utfstring text("");
 	unsigned int cursor_position = 0;
 

@@ -7,6 +7,7 @@
 
 class utfstring {
 	public:
+		utfstring() : _str("") { }
 		utfstring(const char* str) : _str(str) { }
 		utfstring(std::string str) : _str(str) { }
 

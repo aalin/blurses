@@ -61,6 +61,11 @@ class Input {
 						continue;
 					}
 
+					if (c == 0x09) {
+						pushBuffer(Key(Key::KEY_TAB));
+						continue;
+					}
+
 					if (c == 0x18) {
 						pushBuffer(Key(Key::KEY_CANCEL));
 						continue;
@@ -88,6 +93,7 @@ class Input {
 								case 'B': pushBuffer(Key(Key::KEY_UP)); break;
 								case 'D': pushBuffer(Key(Key::KEY_LEFT)); break;
 								case 'C': pushBuffer(Key(Key::KEY_RIGHT)); break;
+								case 'Z': pushBuffer(Key(Key::KEY_TAB_BACK)); break;
 							}
 						} else {
 							pushBuffer(Key(Key::KEY_DELETE));

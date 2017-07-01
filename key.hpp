@@ -16,6 +16,8 @@ struct Key {
 		KEY_CANCEL,
 		KEY_ESCAPE,
 		KEY_RETURN,
+		KEY_TAB,
+		KEY_TAB_BACK,
 	};
 
 	Key(Key::TYPE type) : type(type) {}

@@ -10,7 +10,7 @@ class Primitives {
 	public:
 		Primitives(Display& buffer) : _display(buffer) { }
 
-		void text(uint16_t x, uint16_t y, utfstring text, const CellAttributes &attrs) {
+		void text(uint16_t x, uint16_t y, utfstring text, const CellAttributes &attrs) const {
 			if (y >= _display.height()) {
 				return;
 			}
@@ -122,7 +122,7 @@ class Primitives {
 	private:
 		Display& _display;
 
-		void set(uint16_t x, uint16_t y, const Cell& cell) {
+		void set(uint16_t x, uint16_t y, const Cell& cell) const {
 			_display.set(x, y, cell);
 		}
 };
