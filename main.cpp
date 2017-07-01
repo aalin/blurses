@@ -5,12 +5,36 @@
 #include "blurses.hpp"
 #include <stack>
 
+class CheckboxField {
+	public:
+		CheckboxField() : _checked(false) {}
+
+		void draw(Display& display, uint16_t x, uint16_t y, utfstring text, bool active) {
+			CellAttributes attrs = display.attr().fg(active ? 0xffffff : 0xcccccc);
+
+			if (_checked) {
+				display.primitives().text(x, y, "☑ ", attrs);
+			} else {
+				display.primitives().text(x, y, "☐ ", attrs);
+			}
+
+			display.primitives().text(x + 2, y, text, attrs);
+		}
+
+	private:
+		bool _checked;
+};
+
 class InputField {
 	public:
 		InputField() : _cursor_position(0) { }
 
 		utfstring getText() {
 			return _text;
+		}
+
+		int getCursorPosition() const {
+			return _cursor_position;
 		}
 
 		void reset() {
@@ -23,11 +47,7 @@ class InputField {
 				display.setCursorPosition(x + _cursor_position, y);
 			}
 
-			display.primitives().text(x, y, _text + " ", display.attr().fg(Color::rgb(t / 1000.0)));
-		}
-
-		int getCursorPosition() const {
-			return _cursor_position;
+			display.primitives().text(x, y, _text + " ", display.attr().fg(active ? 0xffffff : 0xcccccc));
 		}
 
 		void handleKey(const Key& key) {

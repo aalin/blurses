@@ -28,7 +28,7 @@ class Buffer {
 
 			const size_t index = this->getIndex(x, y);
 
-			_buffer[index] = cell;
+			_buffer.at(index) = cell;
 		}
 
 		void redraw() {
@@ -42,14 +42,14 @@ class Buffer {
 			std::string buf;
 
 			for (uint16_t y = 0; y < _height; y++) {
-				std::pair<bool, uint16_t> tainted = isRowTainted(y);
+				std::pair<uint16_t, uint16_t> tainted = getTaintedIndexes(y);
 
-				if (!tainted.first) {
+				if (tainted.first == _width) {
 					continue;
 				}
 
-				const uint16_t min_x = tainted.second;
-				const uint16_t max_x = getLastTaintedInRow(y);
+				const uint16_t min_x = tainted.first;
+				const uint16_t max_x = tainted.second;
 				const size_t row_index = this->getIndex(0, y);
 				std::string row_buf;
 
@@ -90,8 +90,8 @@ class Buffer {
 		std::vector<Cell> _buffer, _prev_buffer;
 
 		void printCell(std::string& str, const Cell& cell, const Cell* prev) const {
-			toggle(str, cell.isItalic, prev && prev->isItalic, "\e[3m", "\e[23m");
-			toggle(str, cell.isUnderline, prev && prev->isUnderline, "\e[4m", "\e[24m");
+			toggle(str, cell.isItalic, prev && prev->isItalic, "\033[3m", "\033[23m");
+			toggle(str, cell.isUnderline, prev && prev->isUnderline, "\033[4m", "\033[24m");
 
 			std::string data = cell.data;
 
@@ -113,35 +113,35 @@ class Buffer {
 			}
 		}
 
-		std::pair<bool, uint16_t> isRowTainted(uint16_t y) {
+		std::pair<uint16_t, uint16_t> getTaintedIndexes(const uint16_t y) const {
 			const size_t min = y * _width;
 			const size_t max = min + _width;
+
+			uint16_t min_x = _width;
+			uint16_t max_x = _width;
 
 			for (size_t i = min; i < max; i++) {
 				if (_buffer[i] != _prev_buffer[i]) {
-					return {true, i - min};
+					min_x = i - min;
+					break;
 				}
 			}
-
-			return {false, 0};
-		}
-
-		uint16_t getLastTaintedInRow(uint16_t y) {
-			const size_t min = y * _width;
-			const size_t max = min + _width;
 
 			for (size_t i = max; i >= min; i--) {
 				if (_buffer[i] != _prev_buffer[i]) {
-					return i - min + 1;
+					max_x = i - min + 1;
+					break;
 				}
 			}
 
-			return 0;
+			return {min_x, max_x};
 		}
 
 		bool outOfBounds(uint16_t x, uint16_t y) {
-			if (x > _width) { return true; }
-			if (y > _height) { return true; }
+			if (x < 0) { return true; }
+			if (y < 0) { return true; }
+			if (x >= _width) { return true; }
+			if (y >= _height) { return true; }
 			return false;
 		}
 
