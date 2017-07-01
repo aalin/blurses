@@ -45,15 +45,26 @@ class Buffer {
 			std::string buf;
 
 			for (uint16_t y = 0; y < _height; y++) {
-				for (Range range : getTaintedRanges(y)) {
+				std::list<Range> ranges = getTaintedRanges(y);
+
+				if (ranges.empty()) {
+					continue;
+				}
+
+				const Cell *prev = 0;
+				uint16_t prev_x = 0;
+				std::string row_buf = "\033[0m";
+				const size_t row_index = this->getIndex(0, y);
+				row_buf += "\033[" + std::to_string(y + 1) + ";1H";
+
+				for (const Range &range : ranges) {
 					const uint16_t min_x = range.first;
 					const uint16_t max_x = range.second;
-					const size_t row_index = this->getIndex(0, y);
-					std::string row_buf;
+					const uint16_t shift_right = min_x - prev_x;
 
-					const Cell *prev = 0;
-
-					row_buf += "\033[0m\033[" + std::to_string(y + 1) + ";" + std::to_string(min_x + 1) + "H";
+					if (shift_right > 0) {
+						row_buf += "\033[" + std::to_string(shift_right) + "C";
+					}
 
 					for (uint16_t x = min_x; x < max_x; x++) {
 						const Cell &cell = _buffer[row_index + x];
@@ -61,8 +72,10 @@ class Buffer {
 						prev = &(cell);
 					}
 
-					buf += row_buf;
+					prev_x = max_x;
 				}
+
+				buf += row_buf;
 			}
 
 			if (buf.length() > 0) {
@@ -117,7 +130,7 @@ class Buffer {
 			}
 		}
 
-		std::list<Range> optimizeRanges(const std::list<Range> &ranges, const uint16_t threshold = 5) const {
+		std::list<Range> optimizeRanges(const std::list<Range> &ranges, const uint16_t threshold = 4) const {
 			std::list<Range> results;
 			Range *last = 0;
 
