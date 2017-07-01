@@ -93,23 +93,17 @@ class Color16 : public AbstractColor {
 	public:
 		std::string fg(const Color &rgb, const std::string &str) const {
 			const uint16_t color = colorIndex(rgb);
-			return intensify("\033[" + std::to_string(30 + (color % 8)) + "m" + str, color);
+			const uint16_t base = color < 8 ? 30 : 90;
+			return "\033[" + std::to_string(base + (color % 8)) + "m" + str;
 		}
 
 		std::string bg(const Color &rgb, const std::string &str) const {
 			const uint16_t color = colorIndex(rgb);
-			return "\033[" + std::to_string(40 + (color % 8)) + "m" + str;
+			const uint16_t base = color < 8 ? 40 : 100;
+			return "\033[" + std::to_string(base + (color % 8)) + "m" + str;
 		}
 
 	private:
-		std::string intensify(std::string str, uint16_t color) const {
-			if (color < 8) {
-				return str;
-			}
-
-			return "\033[1m" + str + "\033[22m";
-		}
-
 		uint16_t colorIndex(const Color& rgb) const {
 			float distance = 9999.0;
 			uint16_t index = 0;
