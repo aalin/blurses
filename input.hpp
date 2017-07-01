@@ -40,16 +40,14 @@ class Input {
 				std::string str;
 				str.reserve(128);
 
-				bool in_escape = false;
+				uint8_t escape_count = 0;
 				bool in_bracket = false;
+				char vt[3];
+				memset(vt, '\0', 3);
+				uint8_t vt_seq = 0;
 
 				while (_running) {
 					const uint8_t c = read();
-
-					if (c == 0x7e) {
-						pushBuffer(Key(Key::KEY_DELETE));
-						continue;
-					}
 
 					if (c == 0x7f) {
 						pushBuffer(Key(Key::KEY_BACKSPACE));
@@ -77,35 +75,63 @@ class Input {
 					}
 
 					if (c == 0x1b) {
-						in_escape = true;
+						escape_count++;
 						continue;
 					}
 
-					if (in_escape && c == '[') {
-						in_bracket = true;
-						continue;
-					}
-
-					if (in_escape) {
-						if (in_bracket) {
-							switch (c) {
-								case 'A': pushBuffer(Key(Key::KEY_UP)); break;
-								case 'B': pushBuffer(Key(Key::KEY_UP)); break;
-								case 'D': pushBuffer(Key(Key::KEY_LEFT)); break;
-								case 'C': pushBuffer(Key(Key::KEY_RIGHT)); break;
-								case 'Z': pushBuffer(Key(Key::KEY_TAB_BACK)); break;
+					if (escape_count) {
+						if (!in_bracket) {
+							if (c == '[') {
+								in_bracket = true;
+								continue;
 							}
-						} else {
-							pushBuffer(Key(Key::KEY_DELETE));
-						}
 
-						in_escape = false;
-						in_bracket = false;
-						continue;
+							for (int i = 0; i < escape_count; i++) {
+								pushBuffer(Key(Key::KEY_ESCAPE));
+							}
+
+							escape_count = 0;
+						}
 					}
 
-					in_escape = false;
+					if (escape_count) {
+						if (in_bracket) {
+							if (c >= '0' && c <= '9') {
+								vt[strlen(vt)] = c;
+								continue;
+							}
+
+							if (c == '~') {
+								switch (atoi(vt)) {
+									case 1: pushBuffer(Key(Key::KEY_HOME)); break;
+									case 3: pushBuffer(Key(Key::KEY_DELETE)); break;
+									case 4: pushBuffer(Key(Key::KEY_END)); break;
+								}
+							} else if (escape_count == 2) {
+								switch (c) {
+									case 'D': pushBuffer(Key(Key::KEY_HOME)); break;
+									case 'C': pushBuffer(Key(Key::KEY_END)); break;
+								}
+							} else {
+								switch (c) {
+									case 'A': pushBuffer(Key(Key::KEY_UP)); break;
+									case 'B': pushBuffer(Key(Key::KEY_DOWN)); break;
+									case 'D': pushBuffer(Key(Key::KEY_LEFT)); break;
+									case 'C': pushBuffer(Key(Key::KEY_RIGHT)); break;
+									case 'Z': pushBuffer(Key(Key::KEY_TAB_BACK)); break;
+								}
+							}
+
+							in_bracket = false;
+							escape_count = 0;
+							std::memset(vt, 0, sizeof vt);
+							continue;
+						}
+					}
+
 					in_bracket = false;
+					escape_count = 0;
+					std::memset(vt, 0, sizeof vt);
 
 					str += c;
 

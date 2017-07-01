@@ -30,7 +30,7 @@ class Primitives {
 			}
 		}
 
-		void circle(uint16_t cx, uint16_t cy, float radius, const CellAttributes &attrs) {
+		void circle(uint16_t cx, uint16_t cy, float radius, const CellAttributes &attrs) const {
 			float detail = 32;
 
 			for (uint16_t i = 0; i < detail; i++) {
@@ -44,7 +44,7 @@ class Primitives {
 			}
 		}
 
-		void rect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
+		void rect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) const {
 			Cell cell(attrs.buildCell());
 
 			if (x1 < x0) { std::swap(x0, x1); }
@@ -61,7 +61,7 @@ class Primitives {
 			}
 		}
 
-		void filledRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
+		void filledRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) const {
 			Cell cell(attrs.buildCell());
 
 			if (x1 < x0) { std::swap(x0, x1); }
@@ -74,7 +74,7 @@ class Primitives {
 			}
 		}
 
-		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
+		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) const {
 			Cell cell(attrs.buildCell());
 
 			bresenham(x0, y0, x1, y1, [&](uint16_t x, uint16_t y) {
@@ -82,7 +82,7 @@ class Primitives {
 			});
 		}
 
-		void bresenham(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, std::function<void(uint16_t, uint16_t)> fn) {
+		void bresenham(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, std::function<void(uint16_t, uint16_t)> fn) const {
 			bool steep = false;
 
 			if (std::abs(x0 - x1) < std::abs(y0 - y1)) {

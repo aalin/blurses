@@ -18,6 +18,8 @@ struct Key {
 		KEY_RETURN,
 		KEY_TAB,
 		KEY_TAB_BACK,
+		KEY_END,
+		KEY_HOME,
 	};
 
 	Key(Key::TYPE type) : type(type) {}

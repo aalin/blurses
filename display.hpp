@@ -8,16 +8,7 @@ class Primitives;
 class Display {
 	public:
 		Display();
-
-		~Display() {
-			delete _primitives;
-
-			if (_buffer) {
-				delete _buffer;
-			}
-
-			std::cout << "\033[?25h\033[?1047l";
-		}
+		~Display();
 
 		void redraw() {
 			if (_buffer) {
@@ -98,6 +89,16 @@ class Display {
 Display::Display() : _width(0), _height(0), _buffer(0) {
 	_primitives = new Primitives(*this);
 	std::cout << "\033[?1047h\033[H\033[J";
+}
+
+Display::~Display() {
+	delete _primitives;
+
+	if (_buffer) {
+		delete _buffer;
+	}
+
+	std::cout << "\033[?25h\033[?1047l";
 }
 
 #endif

@@ -15,6 +15,10 @@ class utfstring {
 			return chars().size();
 		}
 
+		size_t find_offset2(size_t index) const {
+			return find_offset(index);
+		}
+
 		std::list<utfstring> chars() const {
 			std::list<utfstring> list;
 
@@ -56,13 +60,13 @@ class utfstring {
 
 			const size_t u8_pos = find_offset(pos);
 
-			if (u8_pos > str().length()) {
+			if (u8_pos > _str.length()) {
 				return utfstring("");
 			}
 
 			const size_t u8_len = find_offset(pos + len) - u8_pos;
 
-			return utfstring(str().substr(u8_pos, u8_len));
+			return utfstring(_str.substr(u8_pos, u8_len));
 		}
 
 		utfstring& operator=(const utfstring &other) {
@@ -112,6 +116,10 @@ class utfstring {
 			char* end = start + _str.length();
 			char* prev = start;
 			char* curr = start;
+
+			if (start == end) {
+				return 0;
+			}
 
 			size_t i = 0;
 
