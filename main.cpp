@@ -5,6 +5,7 @@
 #include "blurses.hpp"
 #include <stack>
 #include <memory>
+#include "braille_buffer.hpp"
 
 class Widget {
 	public:
@@ -39,7 +40,7 @@ class CheckboxField : public Widget {
 			CellAttributes attrs = display.attr().fg(0xffffff);
 			
 			if (active) {
-				display.setCursorPosition(0, 0);
+				display.hideCursor();
 				attrs.bg(0xffffff).fg(0x000000);
 			}
 
@@ -76,10 +77,11 @@ class InputField : public Widget {
 
 		void draw(Display& display, uint16_t x, uint16_t y, bool active) {
 			if (active) {
+				display.showCursor();
 				display.setCursorPosition(x + _cursor_position, y);
 			}
 
-			display.primitives().text(x, y, _text + " ", display.attr().fg(active ? 0xffffff : 0xcccccc));
+			display.primitives().text(x, y, _text, display.attr().fg(active ? 0xffffff : 0xcccccc));
 		}
 
 		void handleKey(const Key& key) {
@@ -129,7 +131,7 @@ class InputField : public Widget {
 
 class State {
 	public:
-		State() {
+		State() : _braille_buffer(80, 20) {
 			_widgets.push_back(std::make_shared<InputField>());
 			_widgets.push_back(std::make_shared<InputField>());
 			_widgets.push_back(std::make_shared<InputField>());
@@ -159,15 +161,26 @@ class State {
 
 		void update(unsigned long ticks) {
 			_t = ticks;
+
+			_braille_buffer.clear();
+
+			for (int i = 0; i < 3; i++) {
+				uint16_t x = i * 20 + std::pow(std::sin((ticks + i * 800) / 1234.0), 2) * 40.0;
+				float radius = 1 + std::pow(std::sin((ticks + i * 500) / 500.0), 2) * 10.0;
+				_braille_buffer.circle(x, 5, radius);
+			}
 		}
 
 		void draw(Display& display) {
 			auto attrs = display.attr().fg(0xcccccc);
 			auto attrs2 = display.attr().fg(0xffffff);
 
-			display.primitives().circle(100, 15, 15, display.attr().bg(Color::hsv(_t / 5.0, 1.0, 0.8)));
-			display.primitives().filledRect(95, 5, 105, 15, display.attr().bg(Color::hsv(_t / 20.0, 1.0, 0.8)));
-			display.primitives().rect(95, 5, 105, 15, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
+			int asd = 100 + std::sin(_t / 1500.0) * 10.0;
+			int asdf = 15 + std::pow(std::sin(_t / 1500.0), 2) * 10.0;
+			int h = 15 + std::sin(_t / 1000.0) * 5.0;
+			display.primitives().circle(asd, 15, asdf, display.attr().bg(Color::hsv(_t / 5.0, 1.0, 0.8)));
+			display.primitives().filledRect(asd - 5, asdf, asd + 5, h, display.attr().bg(Color::hsv(_t / 20.0, 1.0, 0.8)));
+			display.primitives().rect(asd - 5, asdf, asd + 5, h, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
 
 			for (size_t i = 0; i < _widgets.size(); i++) {
 				display.primitives().text(0, 10 + i, "input " + std::to_string(i + 1) + ": ", i == _index ? attrs : attrs2);
@@ -196,6 +209,20 @@ class State {
 			display.primitives().text(50, 2, std::to_string(text.find_offset2(1)), textAttrs);
 			display.primitives().text(50, 3, std::to_string(text.find_offset2(2)), textAttrs);
 
+			int k = 0;
+			textAttrs.fg(0xffffff);
+
+			for (auto line : _braille_buffer.lines()) {
+				int l = 0;
+
+				for (auto ch : line) {
+					display.primitives().putchar(80 + l, k, ch, textAttrs);
+					l++;
+				}
+
+				k++;
+			}
+
 			int i = 0;
 
 			for (utfstring ch : text.chars()) {
@@ -213,6 +240,7 @@ class State {
 
 	private:
 		std::vector<WidgetPtr> _widgets;
+		BrailleBuffer _braille_buffer;
 		unsigned long _t;
 		unsigned int _index;
 		std::list<utfstring> _texts;
@@ -266,4 +294,5 @@ class Application {
 int main() {
 	Application app;
 	app.run();
+	return 0;
 }

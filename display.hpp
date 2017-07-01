@@ -13,13 +13,13 @@ class Display {
 
 		void redraw() {
 			if (_buffer) {
-				_buffer->redraw();
+				_buffer->redraw(_showCursor);
 			}
 		}
 
 		void draw() {
 			if (_buffer) {
-				_buffer->print();
+				_buffer->print(_showCursor);
 			}
 		}
 
@@ -64,11 +64,11 @@ class Display {
 
 		 void showCursor() {
 			 // TODO: _show_cursor is not used anywhere.
-			 _show_cursor = true;
+			 _showCursor = true;
 		 }
 
 		 void hideCursor() {
-			 _show_cursor = false;
+			 _showCursor = false;
 		 }
 
 		 RealColor color(const Color& rgb) const {
@@ -82,7 +82,7 @@ class Display {
 		Buffer *_buffer;
 		Primitives *_primitives;
 		ColorWrapper _color;
-		bool _show_cursor;
+		bool _showCursor;
 
 		void resize(uint16_t width, uint16_t height) {
 			_width = width;
@@ -102,7 +102,7 @@ class Display {
 
 #include "primitives.hpp"
 
-Display::Display() : _width(0), _height(0), _buffer(0) {
+Display::Display() : _width(0), _height(0), _buffer(0), _showCursor(true) {
 	_primitives = new Primitives(*this);
 	std::cout << "\033[?1047h\033[H\033[J";
 }
@@ -114,7 +114,7 @@ Display::~Display() {
 		delete _buffer;
 	}
 
-	std::cout << "\033[?25h\033[?1047l";
+	std::cout << "\033[?25h\033[?1047l\033[2J" << std::flush;
 }
 
 #endif

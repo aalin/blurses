@@ -34,14 +34,14 @@ class Buffer {
 			_buffer.at(index) = cell;
 		}
 
-		void redraw() {
+		void redraw(bool showCursor) {
 			_buffer.assign(_width * _height, Cell());
 			_prev_buffer.assign(_width * _height, Cell());
 			std::cout << "\e[2J";
-			print();
+			print(showCursor);
 		}
 
-		void print() {
+		void print(bool showCursor) {
 			std::string buf;
 
 			for (uint16_t y = 0; y < _height; y++) {
@@ -81,8 +81,8 @@ class Buffer {
 			if (buf.length() > 0) {
 				std::cout << "\033[?25l";
 				std::cout << buf;
-				printCursor();
-				std::cout << "\033[?25h" << std::flush;
+				printCursor(showCursor);
+				std::cout << std::flush;
 				_prev_buffer.assign(_buffer.begin(), _buffer.end());
 				_buffer.assign(_width * _height, Cell());
 			}
@@ -118,8 +118,12 @@ class Buffer {
 			str += data;
 		}
 
-		void printCursor() const {
+		void printCursor(bool showCursor) const {
 			std::cout << "\033[" << std::to_string(_cursorY + 1) << ";" << std::to_string(_cursorX + 1) << "H";
+
+			if (showCursor) {
+				std::cout << "\033[?25h";
+			}
 		}
 
 		void toggle(std::string &str, bool curr, bool prev, std::string enable_code, std::string disable_code) const {

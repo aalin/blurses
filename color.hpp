@@ -10,7 +10,8 @@ struct RealColor {
 	enum TYPE {
 		TrueColor,
 		Color256,
-		Color16
+		Color16,
+		ColorOff
 	} type;
 
 	uint8_t r, g, b;
@@ -23,6 +24,10 @@ struct RealColor {
 
 	static RealColor black() {
 		return {Color16, 0, 0, 0};
+	}
+
+	static RealColor off() {
+		return {ColorOff, 0, 0, 0};
 	}
 
 	bool operator==(const RealColor &other) const {
@@ -41,6 +46,8 @@ struct RealColor {
 				return "\033[38;5;" + std::to_string(this->b) + "m";
 			case Color16:
 				return color16(30);
+			case ColorOff:
+				return "\033[0m";
 		}
 	}
 
@@ -52,6 +59,8 @@ struct RealColor {
 				return "\033[48;5;" + std::to_string(this->b) + "m";
 			case Color16:
 				return color16(40);
+			case ColorOff:
+				return "\033[0m";
 		}
 	}
 

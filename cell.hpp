@@ -5,11 +5,14 @@
 #include "color.hpp"
 
 struct Cell {
-	Cell() : Cell(RealColor::white(), RealColor::black(), " ", false, false) { }
+	Cell() : Cell(RealColor::off(), RealColor::off(), " ", false, false) { }
 
 	Cell(RealColor fg, RealColor bg, std::string data, bool isItalic, bool isUnderline)
-		: fg(fg), bg(bg), data(data), isItalic(isItalic), isUnderline(isUnderline) {
-	}
+		: fg(fg)
+		, bg(bg)
+		, data(data)
+		, isItalic(isItalic),
+		isUnderline(isUnderline) { }
 
 	RealColor fg;
 	RealColor bg;

@@ -11,6 +11,12 @@ class utfstring {
 		utfstring(const char* str) : _str(str) { }
 		utfstring(std::string str) : _str(str) { }
 
+		static utfstring decode(uint32_t codepoint) {
+			char u[5] = {0, 0, 0, 0, 0};
+			utf8::append(codepoint, u);
+			return u;
+		}
+
 		int length() const {
 			return chars().size();
 		}

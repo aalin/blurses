@@ -5,6 +5,7 @@
 #include "display.hpp"
 #include "buffer.hpp"
 #include "utfstring.hpp"
+#include "graphics.hpp"
 
 class Primitives {
 	public:
@@ -22,26 +23,27 @@ class Primitives {
 					return;
 				}
 
-				Cell cell = _display.get(x + i, y);
-				attrs.apply(cell);
-				cell.data = ch.str();
-				set(x + i, y, cell);
+				putchar(x + i, y, ch.str(), attrs);
 				i++;
 			}
 		}
 
-		void circle(uint16_t cx, uint16_t cy, float radius, const CellAttributes &attrs) const {
-			float detail = 32;
+		void putchar(uint16_t x, uint16_t y, std::string ch, const CellAttributes &attrs) const {
+			if (x >= _display.width()) { return; }
+			if (y >= _display.height()) { return; }
 
-			for (uint16_t i = 0; i < detail; i++) {
-				float a0 = i / detail;
-				float x0 = cx + std::cos(a0 * M_PI * 2) * radius;
-				float y0 = cy + std::sin(a0 * M_PI * 2) * radius / 2.0;
-				float a1 = (i + 1) / detail;
-				float x1 = cx + std::cos(a1 * M_PI * 2) * radius;
-				float y1 = cy + std::sin(a1 * M_PI * 2) * radius / 2.0;
-				line(round(x0), round(y0), round(x1), round(y1), attrs);
-			}
+			Cell cell = _display.get(x, y);
+			attrs.apply(cell);
+			cell.data = ch;
+			set(x, y, cell);
+		}
+
+		void circle(uint16_t cx, uint16_t cy, float radius, const CellAttributes &attrs) const {
+			Cell cell(attrs.buildCell());
+
+			Graphics::circle(cx, cy, radius, 16, [&](uint16_t x, uint16_t y) {
+				set(x, y, cell);
+			});
 		}
 
 		void rect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) const {
@@ -77,46 +79,9 @@ class Primitives {
 		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) const {
 			Cell cell(attrs.buildCell());
 
-			bresenham(x0, y0, x1, y1, [&](uint16_t x, uint16_t y) {
+			Graphics::bresenham(x0, y0, x1, y1, [&](uint16_t x, uint16_t y) {
 				set(x, y, cell);
 			});
-		}
-
-		void bresenham(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, std::function<void(uint16_t, uint16_t)> fn) const {
-			bool steep = false;
-
-			if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
-				std::swap(x0, y0);
-				std::swap(x1, y1);
-				steep = true;
-			}
-
-			if (x0 > x1) {
-				std::swap(x0, x1);
-				std::swap(y0, y1);
-			}
-
-			int dx = x1 - x0;
-			int dy = y1 - y0;
-
-			int derror = std::abs(dy) * 2;
-			int error = 0;
-			uint16_t y = y0;
-
-			for (uint16_t x = x0; x <= x1; x++) {
-				if (steep) {
-					fn(y, x);
-				} else {
-					fn(x, y);
-				}
-
-				error += derror;
-
-				if (error > dx) {
-					y += y1 > y0 ? 1 : -1;
-					error -= dx * 2;
-				}
-			}
 		}
 
 	private:
