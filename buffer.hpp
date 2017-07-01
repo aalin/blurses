@@ -14,15 +14,11 @@ class Buffer {
 			, _cursorY(0) {
 			std::cout << "\e[2J";
 			_buffer.resize(width * height, Cell());
-			_buffer2.resize(width * height, Cell());
+			_prev_buffer.resize(width * height, Cell());
 		}
 
 		Cell& get(uint16_t x, uint16_t y) {
 			return _buffer[this->getIndex(x, y)];
-		}
-
-		Cell& get2(uint16_t x, uint16_t y) {
-			return _buffer2[this->getIndex(x, y)];
 		}
 
 		void set(uint16_t x, uint16_t y, Cell cell) {
@@ -33,6 +29,47 @@ class Buffer {
 			const size_t index = this->getIndex(x, y);
 
 			_buffer[index] = cell;
+		}
+
+		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const Color &color = 0xffffff) {
+			bool steep = false;
+
+			if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
+				std::swap(x0, y0);
+				std::swap(x1, y1);
+				steep = true;
+			}
+
+			if (x0 > x1) {
+				std::swap(x0, x1);
+				std::swap(y0, y1);
+			}
+
+			int dx = x1 - x0;
+			int dy = x1 - x0;
+
+			int derror = std::abs(dy) * 2;
+			int error = 0;
+			uint16_t y = y0;
+
+			for (uint16_t x = x0; x < x1; x++) {
+				Cell cell;
+				cell.fg = color;
+				cell.bg = color;
+
+				if (steep) {
+					set(x, y, cell);
+				} else {
+					set(y, x, cell);
+				}
+
+				error += derror;
+
+				if (error > dx) {
+					y += y1 > y0 ? 1 : -1;
+					error -= dx * 2;
+				}
+			}
 		}
 
 		void text(uint16_t x, uint16_t y, utfstring text, Color fg = 0xffffff, Color bg = 0x000000) {
@@ -58,7 +95,7 @@ class Buffer {
 
 		void redraw() {
 			_buffer.assign(_width * _height, Cell());
-			_buffer2.assign(_width * _height, Cell());
+			_prev_buffer.assign(_width * _height, Cell());
 			std::cout << "\e[2J";
 			print();
 		}
@@ -80,8 +117,7 @@ class Buffer {
 
 				const Cell *prev = 0;
 
-				row_buf += "\e[0m";
-				row_buf += "\033[" + std::to_string(y + 1) + ";" + std::to_string(min_x + 1) + "H";
+				row_buf += "\033[0m\033[" + std::to_string(y + 1) + ";" + std::to_string(min_x + 1) + "H";
 
 				for (uint16_t x = min_x; x < max_x; x++) {
 					const Cell &cell = _buffer[row_index + x];
@@ -97,7 +133,7 @@ class Buffer {
 				std::cout << buf;
 				printCursor();
 				std::cout << "\033[?25h" << std::flush;
-				_buffer2.assign(_buffer.begin(), _buffer.end());
+				_prev_buffer.assign(_buffer.begin(), _buffer.end());
 				_buffer.assign(_width * _height, Cell());
 			}
 		}
@@ -113,7 +149,7 @@ class Buffer {
 		uint16_t _cursorX;
 		uint16_t _cursorY;
 		ColorWrapper _color;
-		std::vector<Cell> _buffer, _buffer2;
+		std::vector<Cell> _buffer, _prev_buffer;
 
 		void printCell(std::string& str, const Cell& cell, const Cell* prev) const {
 			toggle(str, cell.isItalic, prev && prev->isItalic, "\e[3m", "\e[23m");
@@ -144,7 +180,7 @@ class Buffer {
 			const size_t max = min + _width;
 
 			for (size_t i = min; i < max; i++) {
-				if (_buffer[i] != _buffer2[i]) {
+				if (_buffer[i] != _prev_buffer[i]) {
 					return {true, i - min};
 				}
 			}
@@ -157,7 +193,7 @@ class Buffer {
 			const size_t max = min + _width;
 
 			for (size_t i = max; i >= min; i--) {
-				if (_buffer[i] != _buffer2[i]) {
+				if (_buffer[i] != _prev_buffer[i]) {
 					return i - min + 1;
 				}
 			}

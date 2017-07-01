@@ -81,6 +81,10 @@ int main() {
 
 		buffer.setCursorPosition(5 + cursor_position, 10);
 
+		for (int lol = 5; lol < 15; lol++) { 
+			buffer.line(lol, 10, lol + 10, 50, rgb(count / 30.0 + lol / 5.0));
+		}
+
 		buffer.text(5, 10, std::string(text.length() + 1, ' '), 0x000000);
 		buffer.text(5, 10, text, 0x555555);
 		buffer.text(5, 11, std::string(text.length() + 1, ' '), 0x000000);
