@@ -162,22 +162,21 @@ class State {
 		}
 
 		void draw(Display& display) {
-			CellAttributes attrs = display.attr();
-			attrs.fg(0xcccccc);
-			CellAttributes attrs2(attrs);
-			attrs.fg(0xffffff).bg(0x666666);
+			auto attrs = display.attr().fg(0xcccccc);
+			auto attrs2 = display.attr().fg(0xffffff);
 
-			display.primitives().circle(100, 15, 15, display.attr().bg(Color::rgb(_t / 5000.0)));
-			display.primitives().filledRect(95, 5, 105, 15, display.attr().bg(Color::rgb(_t / 2000.0)));
-			display.primitives().rect(95, 5, 105, 15, display.attr().bg(Color::rgb(_t / 5000.0)));
+			display.primitives().circle(100, 15, 15, display.attr().bg(Color::hsv(_t / 5.0, 1.0, 0.8)));
+			display.primitives().filledRect(95, 5, 105, 15, display.attr().bg(Color::hsv(_t / 20.0, 1.0, 0.8)));
+			display.primitives().rect(95, 5, 105, 15, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
 
 			for (size_t i = 0; i < _widgets.size(); i++) {
 				display.primitives().text(0, 10 + i, "input: ", i == _index ? attrs : attrs2);
 				_widgets[i]->draw(display, 7, 10 + i, i == _index);
 			}
 
-			CellAttributes textAttrs = display.attr();
-			textAttrs.fg(Color::rgb((_t + _index * 1000) / 1000.0)).bg(0x000000);
+			auto textAttrs = display.attr()
+				.fg(Color::hsv((_t + _index * 1000) / 10.0, 1.0, 1.0))
+				.bg(Color::hsv((_t + _index * 1000) / 10.0, 1.0, 0.5));
 
 			int j = 0;
 
@@ -185,16 +184,15 @@ class State {
 				display.primitives().text(20, j++, text, textAttrs);
 			}
 
-			CellAttributes textAttrs2(textAttrs);
-			textAttrs2.fg(0x0099cc);
-			CellAttributes textAttrs3(textAttrs);
-			textAttrs3.fg(0xffcc00);
+			auto textAttrs2 = display.attr().fg(0x0099cc);
+			auto textAttrs3 = display.attr().fg(0xffcc00);
 
 			utfstring text = _widgets[_index]->getValue();
 			int pos = _widgets[_index]->getCursorPosition();
 			int i = 0;
 			display.primitives().text(50, 0, text.substr(0, pos), textAttrs2);
 			display.primitives().text(50 + pos, 0, text.substr(pos, text.length() - pos), textAttrs3);
+
 			display.primitives().text(50, 1, std::to_string(text.find_offset2(0)), textAttrs);
 			display.primitives().text(50, 2, std::to_string(text.find_offset2(1)), textAttrs);
 			display.primitives().text(50, 3, std::to_string(text.find_offset2(2)), textAttrs);

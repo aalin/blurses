@@ -78,6 +78,31 @@ struct Color {
 		, g(g)
 		, b(b) {}
 
+	static Color hsv(double h, double s, double iv) {
+		uint8_t v = iv * 255;
+
+		if (s <= 0.0) {
+			return {v, v, v};
+		}
+
+		double hh = std::fmod(h, 360.0) / 60.0;
+		long i = static_cast<long>(hh);
+		double ff = hh - i;
+
+		uint8_t p = 255 * iv * (1.0 - s);
+		uint8_t q = 255 * iv * (1.0 - (s * ff));
+		uint8_t t = 255 * iv * (1.0 - (s * (1.0 - ff)));
+
+		switch(i) {
+			case 0:  return {v, t, p};
+			case 1:  return {q, v, p};
+			case 2:  return {p, v, t};
+			case 3:  return {p, q, v};
+			case 4:  return {t, p, v};
+			default: return {v, p, q};
+		}
+    }
+
 	static Color rgb(double i) {
 		return Color(
 			std::pow(std::sin(i + (0 / 3.0) * M_PI), 2) * 255,

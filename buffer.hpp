@@ -132,7 +132,7 @@ class Buffer {
 				}
 			}
 
-			for (size_t i = max; i >= min; i--) {
+			for (size_t i = max - 1; i >= min; i--) {
 				if (_buffer[i] != _prev_buffer[i]) {
 					max_x = i - min + 1;
 					break;

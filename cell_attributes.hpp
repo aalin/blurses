@@ -6,7 +6,12 @@
 
 class CellAttributes {
 	public:
-		CellAttributes(const ColorWrapper &color) : _color(color), _fg(0xffffff), _bg(0x000000), _is_italic(false), _is_underline(false) {}
+		CellAttributes(const ColorWrapper &color)
+			: _color(color)
+			, _fg(0xffffff)
+			, _bg(0x000000)
+			, _is_italic(false)
+			, _is_underline(false) {}
 
 		CellAttributes(const CellAttributes &other)
 			: _color(other._color)
