@@ -60,6 +60,10 @@ class InputField {
 						_cursor_position--;
 					}
 					break;
+				case Key::KEY_ESCAPE:
+					_text = "";
+					_cursor_position = 0;
+					break;
 				case Key::KEY_DELETE:
 					_text = _text.substr(0, _cursor_position) + _text.substr(_cursor_position + 1, _text.length() - _cursor_position);
 					break;

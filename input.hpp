@@ -11,6 +11,81 @@
 #include "key.hpp"
 
 class Input {
+	class InputState {
+		public:
+			InputState(Input& input) : _input(input) {
+				reset();
+			}
+
+			bool handle(const char *str, size_t len) {
+				const char c = str[0];
+
+				if (c == 0x1b) {
+					if (len > 1) {
+						_escape_count++;
+						return true;
+					}
+
+					reset();
+					_input.pushBuffer(Key(Key::KEY_ESCAPE));
+					return true;
+				}
+
+				if (_escape_count && _in_bracket) {
+					if (c >= '0' && c <= '9') {
+						_vt[strlen(_vt) % sizeof _vt] = c;
+						return true;
+					}
+
+					if (c == '~') {
+						switch (atoi(_vt)) {
+							case 1: _input.pushBuffer(Key(Key::KEY_HOME)); break;
+							case 3: _input.pushBuffer(Key(Key::KEY_DELETE)); break;
+							case 4: _input.pushBuffer(Key(Key::KEY_END)); break;
+						}
+					} else {
+						if (_escape_count == 2) {
+								switch (c) {
+									case 'D': _input.pushBuffer(Key(Key::KEY_HOME)); break;
+									case 'C': _input.pushBuffer(Key(Key::KEY_END)); break;
+								}
+						} else {
+							switch (c) {
+								case 'A': _input.pushBuffer(Key(Key::KEY_UP)); break;
+								case 'B': _input.pushBuffer(Key(Key::KEY_DOWN)); break;
+								case 'D': _input.pushBuffer(Key(Key::KEY_LEFT)); break;
+								case 'C': _input.pushBuffer(Key(Key::KEY_RIGHT)); break;
+								case 'Z': _input.pushBuffer(Key(Key::KEY_TAB_BACK)); break;
+							}
+						}
+					}
+
+					reset();
+					return true;
+				}
+
+				if (_escape_count && !_in_bracket && c == '[') {
+					_in_bracket = true;
+					return true;
+				}
+
+				reset();
+				return false;
+			}
+
+			void reset() {
+				_escape_count = 0;
+				_in_bracket = false;
+				std::memset(_vt, 0, sizeof _vt);
+			}
+
+		private:
+			Input &_input;
+			uint8_t _escape_count;
+			bool _in_bracket;
+			char _vt[3];
+	};
+
 	public:
 		Input() : _th(nullptr) {
 			_running = false;
@@ -40,110 +115,39 @@ class Input {
 				std::string str;
 				str.reserve(128);
 
-				uint8_t escape_count = 0;
-				bool in_bracket = false;
-				char vt[3];
-				memset(vt, '\0', 3);
-				uint8_t vt_seq = 0;
+				char buffer[32];
+				size_t buflen = 0;
+
+				InputState state(*this);
 
 				while (_running) {
-					const uint8_t c = read();
+					buflen = ::read(0, &buffer, sizeof buffer);
 
-					if (c == 0x7f) {
-						pushBuffer(Key(Key::KEY_BACKSPACE));
-						continue;
-					}
+					for (size_t i = 0; i < buflen; i++) {
+						char c = buffer[i];
 
-					if (c == 0x0a) {
-						pushBuffer(Key(Key::KEY_RETURN));
-						continue;
-					}
-
-					if (c == 0x09) {
-						pushBuffer(Key(Key::KEY_TAB));
-						continue;
-					}
-
-					if (c == 0x18) {
-						pushBuffer(Key(Key::KEY_CANCEL));
-						continue;
-					}
-
-					if (c == 0x0c) {
-						pushBuffer(Key(Key::KEY_REDRAW));
-						continue;
-					}
-
-					if (c == 0x1b) {
-						escape_count++;
-						continue;
-					}
-
-					if (escape_count) {
-						if (!in_bracket) {
-							if (c == '[') {
-								in_bracket = true;
-								continue;
-							}
-
-							for (int i = 0; i < escape_count; i++) {
-								pushBuffer(Key(Key::KEY_ESCAPE));
-							}
-
-							escape_count = 0;
-						}
-					}
-
-					if (escape_count) {
-						if (in_bracket) {
-							if (c >= '0' && c <= '9') {
-								vt[strlen(vt)] = c;
-								continue;
-							}
-
-							if (c == '~') {
-								switch (atoi(vt)) {
-									case 1: pushBuffer(Key(Key::KEY_HOME)); break;
-									case 3: pushBuffer(Key(Key::KEY_DELETE)); break;
-									case 4: pushBuffer(Key(Key::KEY_END)); break;
-								}
-							} else if (escape_count == 2) {
-								switch (c) {
-									case 'D': pushBuffer(Key(Key::KEY_HOME)); break;
-									case 'C': pushBuffer(Key(Key::KEY_END)); break;
-								}
-							} else {
-								switch (c) {
-									case 'A': pushBuffer(Key(Key::KEY_UP)); break;
-									case 'B': pushBuffer(Key(Key::KEY_DOWN)); break;
-									case 'D': pushBuffer(Key(Key::KEY_LEFT)); break;
-									case 'C': pushBuffer(Key(Key::KEY_RIGHT)); break;
-									case 'Z': pushBuffer(Key(Key::KEY_TAB_BACK)); break;
-								}
-							}
-
-							in_bracket = false;
-							escape_count = 0;
-							std::memset(vt, 0, sizeof vt);
+						if (handleAscii(c)) {
 							continue;
 						}
+
+						if (state.handle(buffer + i, buflen - i)) {
+							continue;
+						}
+
+						state.reset();
+
+						str += c;
+
+						if (!utfstring::is_valid(str)) {
+							continue;
+						}
+
+						for (utfstring &ch : utfstring(str).chars()) {
+							pushBuffer(Key(ch.str()));
+						}
+
+						str = "";
 					}
-
-					in_bracket = false;
-					escape_count = 0;
-					std::memset(vt, 0, sizeof vt);
-
-					str += c;
-
-					if (!utfstring::is_valid(str)) {
-						continue;
-					}
-
-					for (utfstring &ch : utfstring(str).chars()) {
-						pushBuffer(Key(ch.str()));
-					}
-
-					str = "";
 				}
 			});
 		}
@@ -155,6 +159,11 @@ class Input {
 			return buffer;
 		}
 
+		void pushBuffer(Key key) {
+			std::lock_guard<std::mutex> guard(_buffer_mutex);
+			_buffer.push_back(key);
+		}
+
 	private:
 		termios _old_termios;
 		std::list<Key> _buffer;
@@ -162,15 +171,26 @@ class Input {
 		std::thread *_th;
 		bool _running;
 
-		char read() {
-			char c;
-			::read(0, &c, 1);
-			return c;
-		}
-
-		void pushBuffer(Key key) {
-			std::lock_guard<std::mutex> guard(_buffer_mutex);
-			_buffer.push_back(key);
+		bool handleAscii(const char c) {
+			switch (c) {
+				case 0x7f:
+						pushBuffer(Key(Key::KEY_BACKSPACE));
+						return true;
+				case 0x0a:
+						pushBuffer(Key(Key::KEY_RETURN));
+						return true;
+				case 0x09:
+						pushBuffer(Key(Key::KEY_TAB));
+						return true;
+				case 0x18:
+						pushBuffer(Key(Key::KEY_CANCEL));
+						return true;
+				case 0x0c:
+						pushBuffer(Key(Key::KEY_REDRAW));
+						return true;
+				default:
+						return false;
+			}
 		}
 };
 
