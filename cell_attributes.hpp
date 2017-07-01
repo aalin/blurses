@@ -6,10 +6,11 @@
 
 class CellAttributes {
 	public:
-		CellAttributes() : _fg(0xffffff), _bg(0x000000), _is_italic(false), _is_underline(false) {}
+		CellAttributes(const ColorWrapper &color) : _color(color), _fg(0xffffff), _bg(0x000000), _is_italic(false), _is_underline(false) {}
 
 		CellAttributes(const CellAttributes &other)
-			: _fg(other._fg)
+			: _color(other._color)
+			, _fg(other._fg)
 			, _bg(other._bg)
 			, _is_italic(other._is_italic)
 			, _is_underline(other._is_underline)
@@ -49,14 +50,15 @@ class CellAttributes {
 		}
 
 		Cell& apply(Cell& cell) const {
-			if (_isset_fg) { cell.fg = _fg; }
-			if (_isset_bg) { cell.bg = _bg; }
+			if (_isset_fg) { cell.fg = _color.value(_fg); }
+			if (_isset_bg) { cell.bg = _color.value(_bg); }
 			if (_isset_is_italic) { cell.isItalic = _is_italic; }
 			if (_isset_is_underline) { cell.isUnderline = _is_underline; }
 			return cell;
 		}
 
 	private:
+		const ColorWrapper& _color;
 		Color _fg;
 		Color _bg;
 		bool _is_italic;

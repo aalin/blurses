@@ -86,7 +86,6 @@ class Buffer {
 		const uint16_t _height;
 		uint16_t _cursorX;
 		uint16_t _cursorY;
-		ColorWrapper _color;
 		std::vector<Cell> _buffer, _prev_buffer;
 
 		void printCell(std::string& str, const Cell& cell, const Cell* prev) const {
@@ -101,8 +100,8 @@ class Buffer {
 				data += value;
 			}
 
-			if (prev == 0 || cell.bg != prev->bg) { data = _color.bg(cell.bg) + data; }
-			if (prev == 0 || cell.fg != prev->fg) { data = _color.fg(cell.fg) + data; }
+			if (prev == 0 || cell.bg != prev->bg) { data = cell.bg.bg() + data; }
+			if (prev == 0 || cell.fg != prev->fg) { data = cell.fg.fg() + data; }
 
 			str += data;
 		}

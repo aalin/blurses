@@ -162,7 +162,7 @@ class State {
 		}
 
 		void draw(Display& display) {
-			CellAttributes attrs;
+			CellAttributes attrs = display.attr();
 			attrs.fg(0xcccccc);
 			CellAttributes attrs2(attrs);
 			attrs.fg(0xffffff).bg(0x666666);
@@ -176,8 +176,8 @@ class State {
 				_widgets[i]->draw(display, 7, 10 + i, i == _index);
 			}
 
-			CellAttributes textAttrs;
-			textAttrs.fg(Color::rgb((_t + _index * 1000) / 1000.0));
+			CellAttributes textAttrs = display.attr();
+			textAttrs.fg(Color::rgb((_t + _index * 1000) / 1000.0)).bg(0x000000);
 
 			int j = 0;
 

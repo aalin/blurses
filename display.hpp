@@ -2,6 +2,7 @@
 #define DISPLAY_HPP
 
 #include "buffer.hpp"
+#include "cell_attributes.hpp"
 
 class Primitives;
 
@@ -58,7 +59,7 @@ class Display {
 		}
 
 		 CellAttributes attr() {
-			 return CellAttributes();
+			 return CellAttributes(_color);
 		 }
 
 		 void showCursor() {
@@ -70,12 +71,17 @@ class Display {
 			 _show_cursor = false;
 		 }
 
+		 RealColor color(const Color& rgb) const {
+			 return _color.value(rgb);
+		 }
+
 	private:
 		struct winsize _winsize;
 		uint16_t _width;
 		uint16_t _height;
 		Buffer *_buffer;
 		Primitives *_primitives;
+		ColorWrapper _color;
 		bool _show_cursor;
 
 		void resize(uint16_t width, uint16_t height) {

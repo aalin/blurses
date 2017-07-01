@@ -6,6 +6,67 @@
 #include <cstdlib>
 #include <cmath>
 
+struct RealColor {
+	enum TYPE {
+		TrueColor,
+		Color256,
+		Color16
+	} type;
+
+	uint8_t r, g, b;
+
+//	RealColor(const RealColor &other) : type(other.type), r(other.r), g(other.g), b(other.b) { }
+
+	static RealColor white() {
+		return {Color16, 0, 0, 7};
+	}
+
+	static RealColor black() {
+		return {Color16, 0, 0, 0};
+	}
+
+	bool operator==(const RealColor &other) const {
+		return type == other.type && b == other.b && g == other.g && r == other.r;
+	}
+
+	bool operator!=(const RealColor &other) const {
+		return !(*this == other);
+	}
+
+	std::string fg() const {
+		switch (this->type) {
+			case TrueColor:
+				return "\033[38;2;" + ansiTrueColor() + "m";
+			case Color256:
+				return "\033[38;5;" + std::to_string(this->b) + "m";
+			case Color16:
+				return color16(30);
+		}
+	}
+
+	std::string bg() const {
+		switch (this->type) {
+			case TrueColor:
+				return "\033[48;2;" + ansiTrueColor() + "m";
+			case Color256:
+				return "\033[48;5;" + std::to_string(this->b) + "m";
+			case Color16:
+				return color16(40);
+		}
+	}
+
+private:
+	std::string ansiTrueColor() const {
+		return std::to_string(this->r) + ";" + std::to_string(this->g) + ";" + std::to_string(this->b);
+	}
+
+	std::string color16(uint16_t x) const {
+		const uint16_t color = this->b;
+		const uint16_t base = color < 8 ? x : x + 60;
+		return "\033[" + std::to_string(base + (color % 8)) + "m";
+	}
+};
+
 struct Color {
 	Color(uint32_t rgb)
 		: r((rgb >> 16) & 0xff)
@@ -50,7 +111,7 @@ class AbstractColor {
 	public:
 		virtual std::string fg(const Color &rgb) const = 0;
 		virtual std::string bg(const Color &rgb) const = 0;
-		virtual uint32_t value(const Color &rgb) const = 0;
+		virtual RealColor value(const Color &rgb) const = 0;
 
 		virtual ~AbstractColor() {}
 };
@@ -65,8 +126,8 @@ class TrueColor : public AbstractColor {
 			return "\033[48;2;" + ansiTrueColor(rgb) + "m";
 		}
 
-		uint32_t value(const Color &rgb) const {
-			return rgb.r << 16 | rgb.g << 8 | rgb.b;
+		RealColor value(const Color &rgb) const {
+			return {RealColor::TrueColor, rgb.r, rgb.g, rgb.b};
 		}
 
 	private:
@@ -108,16 +169,16 @@ class Color16 : public AbstractColor {
 			return "\033[" + std::to_string(base + (color % 8)) + "m";
 		}
 
-		uint32_t value(const Color& rgb) const {
-			return colorIndex(rgb);
+		RealColor value(const Color &rgb) const {
+			return {RealColor::Color16, 0, 0, colorIndex(rgb)};
 		}
 
 	private:
-		uint16_t colorIndex(const Color& rgb) const {
+		uint8_t colorIndex(const Color& rgb) const {
 			float distance = 9999.0;
-			uint16_t index = 0;
+			uint8_t index = 0;
 
-			for (int i = 0; i < 16; i++) {
+			for (uint8_t i = 0; i < 16; i++) {
 				const float dist = rgb.distance(COLORS[i]);
 
 				if (dist < distance) {
@@ -140,8 +201,8 @@ class Color256 : public AbstractColor {
 			return "\033[48;5;" + std::to_string(this->ansi256(rgb)) + "m";
 		}
 
-		uint32_t value(const Color& rgb) const {
-			return ansi256(rgb);
+		RealColor value(const Color& rgb) const {
+			return {RealColor::Color256, 0, 0, this->ansi256(rgb)};
 		}
 
 	private:
@@ -187,7 +248,7 @@ class ColorWrapper {
 
 		std::string fg(const Color &rgb) const { return _color->fg(rgb); }
 		std::string bg(const Color &rgb) const { return _color->bg(rgb); }
-		uint32_t value(const Color &rgb) const { return _color->value(rgb); }
+		RealColor value(const Color &rgb) const { return _color->value(rgb); }
 
 	private:
 		AbstractColor *_color;
