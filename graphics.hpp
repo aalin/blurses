@@ -46,15 +46,15 @@ namespace Graphics {
 		}
 	}
 
-	static void circle(uint16_t cx, uint16_t cy, float radius, float detail, callback_func fn, float y_multiply = 1.0) {
+	static void circle(uint16_t cx, uint16_t cy, float radius, float detail, callback_func fn, float y_multiply = 0.5) {
 		for (uint16_t i = 0; i < detail; i++) {
 			float a0 = i / detail;
 			float x0 = cx + std::cos(a0 * M_PI * 2) * radius;
-			float y0 = cy + std::sin(a0 * M_PI * 2) * radius / 2.0;
+			float y0 = cy + std::sin(a0 * M_PI * 2) * radius * y_multiply;
 			float a1 = (i + 1) / detail;
 			float x1 = cx + std::cos(a1 * M_PI * 2) * radius;
-			float y1 = cy + std::sin(a1 * M_PI * 2) * radius / 2.0;
-			bresenham(round(x0), round(y0) * y_multiply, round(x1), round(y1) * y_multiply, fn);
+			float y1 = cy + std::sin(a1 * M_PI * 2) * radius * y_multiply;
+			bresenham(round(x0), round(y0), round(x1), round(y1), fn);
 		}
 	}
 };

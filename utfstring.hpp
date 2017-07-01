@@ -3,6 +3,7 @@
 
 #include <string>
 #include <list>
+#include <iterator>
 #include "vendor/utfcpp/source/utf8.h"
 
 class utfstring {
@@ -12,9 +13,9 @@ class utfstring {
 		utfstring(std::string str) : _str(str) { }
 
 		static utfstring decode(uint32_t codepoint) {
-			char u[5] = {0, 0, 0, 0, 0};
-			utf8::append(codepoint, u);
-			return u;
+			std::string str;
+			utf8::append(codepoint, std::back_inserter(str));
+			return str;
 		}
 
 		int length() const {

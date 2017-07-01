@@ -23,7 +23,7 @@ class CheckboxField : public Widget {
 		CheckboxField(utfstring label) : _checked(false), _label(label) {}
 
 		utfstring getValue() const {
-			return _checked ? "1" : "0";
+			return _checked ? "true" : "false";
 		}
 
 		void reset() {
@@ -131,7 +131,7 @@ class InputField : public Widget {
 
 class State {
 	public:
-		State() : _braille_buffer(80, 20) {
+		State() : _braille_buffer(80, 40) {
 			_widgets.push_back(std::make_shared<InputField>());
 			_widgets.push_back(std::make_shared<InputField>());
 			_widgets.push_back(std::make_shared<InputField>());
@@ -164,11 +164,40 @@ class State {
 
 			_braille_buffer.clear();
 
-			for (int i = 0; i < 3; i++) {
-				uint16_t x = i * 20 + std::pow(std::sin((ticks + i * 800) / 1234.0), 2) * 40.0;
-				float radius = 1 + std::pow(std::sin((ticks + i * 500) / 500.0), 2) * 10.0;
-				_braille_buffer.circle(x, 5, radius);
+			for (int i = 0; i < 5; i++) {
+				uint16_t x = 40 + i * 5 + std::pow(std::sin((ticks + i * 500) / 2234.0), 2) * 20.0;
+				uint16_t y = 10 + std::sin((ticks + i * 500) / 2234.0) * 5;
+				float radius = 1 + std::pow(std::sin((ticks + i * 500) / 1000.0), 2) * 25.0;
+				_braille_buffer.circle(x, y, radius);
 			}
+
+			float x = 30 + std::sin(_t / 200.0) * 5.0;
+			_braille_buffer.circle(x, 20, 20);
+			_braille_buffer.circle(x, 20, 22);
+
+			for (int i = 0; i < 12; i++) {
+				float a = i / 12.0;
+				float radius = i % 3 == 0 ? 15.0 : 17;
+				float x0 = x + std::sin(a * M_PI * 2) * radius;
+				float y0 = 20 + std::cos(a * M_PI * 2) * radius;
+				float x1 = x + std::sin(a * M_PI * 2) * 20.0;
+				float y1 = 20 + std::cos(a * M_PI * 2) * 20.0;
+				_braille_buffer.line(x0, y0, x1, y1);
+			}
+
+			_braille_buffer.line(
+				x,
+				20,
+				std::round(x + std::cos(ticks / 1000.0 * M_PI) * 20),
+				std::round(x + std::sin(ticks / 1000.0 * M_PI) * 20)
+			);
+
+			_braille_buffer.line(
+				20,
+				20,
+				std::round(x + std::cos(ticks / 36000.0 * M_PI) * 20),
+				std::round(x + std::sin(ticks / 36000.0 * M_PI) * 20)
+			);
 		}
 
 		void draw(Display& display) {
@@ -176,11 +205,13 @@ class State {
 			auto attrs2 = display.attr().fg(0xffffff);
 
 			int asd = 100 + std::sin(_t / 1500.0) * 10.0;
-			int asdf = 15 + std::pow(std::sin(_t / 1500.0), 2) * 10.0;
-			int h = 15 + std::sin(_t / 1000.0) * 5.0;
-			display.primitives().circle(asd, 15, asdf, display.attr().bg(Color::hsv(_t / 5.0, 1.0, 0.8)));
-			display.primitives().filledRect(asd - 5, asdf, asd + 5, h, display.attr().bg(Color::hsv(_t / 20.0, 1.0, 0.8)));
-			display.primitives().rect(asd - 5, asdf, asd + 5, h, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
+			int asdf = 5 + std::pow(std::sin(_t / 1500.0), 2) * 10.0;
+			int h = 5 + std::pow(std::sin(_t / 1000.0), 2) * 10.0;
+			int w = 2 + std::pow(std::sin(_t / 1337.0), 2) * 5.0;
+
+			display.primitives().circle(asd, 15, asdf, display.attr().bg(Color::hsv(_t / 20.0, 1.0, 0.8)));
+			display.primitives().filledRect(100 - w, asdf, 100 + w, asdf + h, display.attr().bg(Color::hsv(_t / 30.0, 1.0, 0.8)));
+			display.primitives().rect(100 - w, asdf, 100 + w, asdf + h, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
 
 			for (size_t i = 0; i < _widgets.size(); i++) {
 				display.primitives().text(0, 10 + i, "input " + std::to_string(i + 1) + ": ", i == _index ? attrs : attrs2);
@@ -188,8 +219,8 @@ class State {
 			}
 
 			auto textAttrs = display.attr()
-				.fg(Color::hsv((_t + _index * 1000) / 10.0, 1.0, 1.0))
-				.bg(Color::hsv((_t + _index * 1000) / 10.0, 1.0, 0.5));
+				.fg(Color::hsv((_t + _index * 2000) / 10.0, 1.0, 1.0))
+				.bg(Color::hsv((_t + _index * 2000) / 10.0, 1.0, 0.5));
 
 			int j = 0;
 
@@ -210,18 +241,20 @@ class State {
 			display.primitives().text(50, 3, std::to_string(text.find_offset2(2)), textAttrs);
 
 			int k = 0;
-			textAttrs.fg(0xffffff);
 
 			for (auto line : _braille_buffer.lines()) {
 				int l = 0;
 
 				for (auto ch : line) {
-					display.primitives().putchar(80 + l, k, ch, textAttrs);
+					float bg = std::sin(l / 20.0) * (10 + std::cos(_t / 500.0)) + std::cos(k / 20.0) * 20.0;
+					CellAttributes attr = display.attr().bg(Color::hsv(bg * bg, 1.0, 0.5)).fg(0xffffff);
+					display.primitives().putchar(10 + l, 20 + k, ch, attr);
 					l++;
 				}
 
 				k++;
 			}
+			textAttrs.fg(0xffffff);
 
 			int i = 0;
 

@@ -34,7 +34,13 @@ class BrailleBuffer {
 		void circle(uint16_t cx, uint16_t cy, float radius) {
 			Graphics::circle(cx, cy, radius, 16, [&](uint16_t x, uint16_t y) {
 				set(x, y, true);
-			}, 2.0);
+			}, 1.0);
+		}
+
+		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+			Graphics::bresenham(x0, y0, x1, y1, [&](uint16_t x, uint16_t y) {
+				set(x, y, true);
+			});
 		}
 
 		std::list<std::list<std::string> > lines() {
