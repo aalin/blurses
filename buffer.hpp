@@ -2,10 +2,13 @@
 #define BUFFER_HPP
 
 #include <vector>
+#include <list>
 #include "cell.hpp"
 #include "cell_attributes.hpp"
 
 class Buffer {
+	typedef std::pair<uint16_t, uint16_t> Range;
+
 	public:
 		Buffer(uint16_t width, uint16_t height)
 			: _width(width)
@@ -42,28 +45,24 @@ class Buffer {
 			std::string buf;
 
 			for (uint16_t y = 0; y < _height; y++) {
-				std::pair<uint16_t, uint16_t> tainted = getTaintedIndexes(y);
+				for (Range range : getTaintedRanges(y)) {
+					const uint16_t min_x = range.first;
+					const uint16_t max_x = range.second;
+					const size_t row_index = this->getIndex(0, y);
+					std::string row_buf;
 
-				if (tainted.first == _width) {
-					continue;
+					const Cell *prev = 0;
+
+					row_buf += "\033[0m\033[" + std::to_string(y + 1) + ";" + std::to_string(min_x + 1) + "H";
+
+					for (uint16_t x = min_x; x < max_x; x++) {
+						const Cell &cell = _buffer[row_index + x];
+						printCell(row_buf, cell, prev);
+						prev = &(cell);
+					}
+
+					buf += row_buf;
 				}
-
-				const uint16_t min_x = tainted.first;
-				const uint16_t max_x = tainted.second;
-				const size_t row_index = this->getIndex(0, y);
-				std::string row_buf;
-
-				const Cell *prev = 0;
-
-				row_buf += "\033[0m\033[" + std::to_string(y + 1) + ";" + std::to_string(min_x + 1) + "H";
-
-				for (uint16_t x = min_x; x < max_x; x++) {
-					const Cell &cell = _buffer[row_index + x];
-					printCell(row_buf, cell, prev);
-					prev = &(cell);
-				}
-
-				buf += row_buf;
 			}
 
 			if (buf.length() > 0) {
@@ -118,28 +117,52 @@ class Buffer {
 			}
 		}
 
-		std::pair<uint16_t, uint16_t> getTaintedIndexes(const uint16_t y) const {
+		std::list<Range> optimizeRanges(const std::list<Range> &ranges, const uint16_t threshold = 5) const {
+			std::list<Range> results;
+			Range *last = 0;
+
+			for (Range range : ranges) {
+				if (last && range.first - last->second <= threshold) {
+					last->second = range.second;
+				} else {
+					results.push_back(range);
+					last = &(results.back());
+				}
+			}
+
+			return results;
+		}
+
+		std::list<Range> getTaintedRanges(const uint16_t y) const {
 			const size_t min = y * _width;
 			const size_t max = min + _width;
 
-			uint16_t min_x = _width;
-			uint16_t max_x = _width;
+			std::list<Range> ranges;
+
+			int16_t first = -1;
+			int16_t last = -1;
 
 			for (size_t i = min; i < max; i++) {
-				if (_buffer[i] != _prev_buffer[i]) {
-					min_x = i - min;
-					break;
+				if (_buffer[i] == _prev_buffer[i]) {
+					if (first >= 0) {
+						ranges.push_back({first, last});
+						first = -1;
+						last = -1;
+					}
+				} else {
+					if (first < 0) {
+						first = i - min;
+					}
+
+					last = i - min + 1;
 				}
 			}
 
-			for (size_t i = max - 1; i >= min; i--) {
-				if (_buffer[i] != _prev_buffer[i]) {
-					max_x = i - min + 1;
-					break;
-				}
+			if (first >= 0) {
+				ranges.push_back({first, _width});
 			}
 
-			return {min_x, max_x};
+			return optimizeRanges(ranges);
 		}
 
 		bool outOfBounds(uint16_t x, uint16_t y) {

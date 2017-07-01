@@ -170,8 +170,8 @@ class State {
 			display.primitives().rect(95, 5, 105, 15, display.attr().bg(Color::hsv(_t / 10.0, 1.0, 0.8)));
 
 			for (size_t i = 0; i < _widgets.size(); i++) {
-				display.primitives().text(0, 10 + i, "input: ", i == _index ? attrs : attrs2);
-				_widgets[i]->draw(display, 7, 10 + i, i == _index);
+				display.primitives().text(0, 10 + i, "input " + std::to_string(i + 1) + ": ", i == _index ? attrs : attrs2);
+				_widgets[i]->draw(display, 9, 10 + i, i == _index);
 			}
 
 			auto textAttrs = display.attr()
@@ -189,13 +189,14 @@ class State {
 
 			utfstring text = _widgets[_index]->getValue();
 			int pos = _widgets[_index]->getCursorPosition();
-			int i = 0;
 			display.primitives().text(50, 0, text.substr(0, pos), textAttrs2);
 			display.primitives().text(50 + pos, 0, text.substr(pos, text.length() - pos), textAttrs3);
 
 			display.primitives().text(50, 1, std::to_string(text.find_offset2(0)), textAttrs);
 			display.primitives().text(50, 2, std::to_string(text.find_offset2(1)), textAttrs);
 			display.primitives().text(50, 3, std::to_string(text.find_offset2(2)), textAttrs);
+
+			int i = 0;
 
 			for (utfstring ch : text.chars()) {
 				int j = 0;
@@ -208,8 +209,6 @@ class State {
 
 				i++;
 			}
-
-			display.primitives().text(30, i, std::string(20, ' '), textAttrs);
 		}
 
 	private:

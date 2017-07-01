@@ -11,7 +11,7 @@ CPPFLAGS=-Wall -Wextra -ggdb -std=c++14 -stdlib=libc++
 CFLAGS=-Wall -Wextra -ggdb
 
 ifeq ($(shell uname), Darwin)
-  LFLAGS=-lstdc++ -stdlib=libc++
+  LFLAGS=-lstdc++ -stdlib=libc++ -ltermcap
 else
   LFLAGS=-lstdc++ -lm
 endif
