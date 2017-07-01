@@ -74,10 +74,10 @@ int main() {
 		unsigned long time = timer.getTime();
 
 		display.update();
-		Buffer& buffer = display.getBuffer();
-		buffer.setCursorPosition(5 + cursor_position, 10);
 
-		Primitives primitives(display);
+		display.setCursorPosition(5 + cursor_position, 10);
+
+		Primitives primitives = display.primitives();
 
 		for (int lol = 5; lol < 15; lol++) { 
 			primitives.line(lol, 5, lol + 10, 20, CellAttributes().bg(Color::rgb(time / 500.0 + lol / 5.0)));

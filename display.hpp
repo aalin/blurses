@@ -58,8 +58,12 @@ class Display {
 			return getBuffer().get(x, y);
 		}
 
-		Buffer& getBuffer() {
-			return *_buffer;
+		void setCursorPosition(uint16_t x, uint16_t y) {
+			getBuffer().setCursorPosition(x, y);
+		}
+
+		const Primitives& primitives() {
+			return *_primitives;
 		}
 
 	private:
@@ -78,6 +82,10 @@ class Display {
 			}
 
 			this->_buffer = new Buffer(width, height);
+		}
+
+		Buffer& getBuffer() {
+			return *_buffer;
 		}
 };
 
