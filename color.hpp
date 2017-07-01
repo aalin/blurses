@@ -17,6 +17,14 @@ struct Color {
 		, g(g)
 		, b(b) {}
 
+	static Color rgb(double i) {
+		return Color(
+			std::pow(std::sin(i + (0 / 3.0) * M_PI), 2) * 255,
+			std::pow(std::sin(i + (1 / 3.0) * M_PI), 2) * 255,
+			std::pow(std::sin(i + (2 / 3.0) * M_PI), 2) * 255
+		);
+	}
+
 	bool operator==(const Color &other) const {
 		return other.r == r && other.g == g && other.b == b;
 	}

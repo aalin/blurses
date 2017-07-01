@@ -4,6 +4,7 @@
 #include <vector>
 #include "cell.hpp"
 #include "utfstring.hpp"
+#include "cell_attributes.hpp"
 
 class Buffer {
 	public:
@@ -31,7 +32,7 @@ class Buffer {
 			_buffer[index] = cell;
 		}
 
-		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const Color &color = 0xffffff) {
+		void line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, const CellAttributes &attrs) {
 			bool steep = false;
 
 			if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -46,21 +47,19 @@ class Buffer {
 			}
 
 			int dx = x1 - x0;
-			int dy = x1 - x0;
+			int dy = y1 - y0;
 
 			int derror = std::abs(dy) * 2;
 			int error = 0;
 			uint16_t y = y0;
 
-			for (uint16_t x = x0; x < x1; x++) {
-				Cell cell;
-				cell.fg = color;
-				cell.bg = color;
+			Cell cell(attrs.buildCell());
 
+			for (uint16_t x = x0; x <= x1; x++) {
 				if (steep) {
-					set(x, y, cell);
-				} else {
 					set(y, x, cell);
+				} else {
+					set(x, y, cell);
 				}
 
 				error += derror;
@@ -72,7 +71,21 @@ class Buffer {
 			}
 		}
 
-		void text(uint16_t x, uint16_t y, utfstring text, Color fg = 0xffffff, Color bg = 0x000000) {
+		void circle(uint16_t cx, uint16_t cy, float radius, const CellAttributes &attrs) {
+			float detail = 32;
+
+			for (uint16_t i = 0; i < detail; i++) {
+				float a0 = i / detail;
+				float x0 = cx + std::cos(a0 * M_PI * 2) * radius;
+				float y0 = cy + std::sin(a0 * M_PI * 2) * radius / 2.0;
+				float a1 = (i + 1) / detail;
+				float x1 = cx + std::cos(a1 * M_PI * 2) * radius;
+				float y1 = cy + std::sin(a1 * M_PI * 2) * radius / 2.0;
+				line(round(x0), round(y0), round(x1), round(y1), attrs);
+			}
+		}
+
+		void text(uint16_t x, uint16_t y, utfstring text, const CellAttributes &attrs) {
 			if (y >= _height) {
 				return;
 			}
@@ -85,8 +98,7 @@ class Buffer {
 				}
 
 				Cell cell = this->get(x + i, y);
-				cell.fg = fg;
-				cell.bg = bg;
+				attrs.apply(cell);
 				cell.data = ch.str();
 				this->set(x + i, y, cell);
 				i++;
@@ -213,6 +225,10 @@ class Buffer {
 				throw "out of bounds";
 			}
 			return y * _width + x;
+		}
+
+		uint16_t round(float x) {
+			return static_cast<uint16_t>(x + 0.5);
 		}
 };
 

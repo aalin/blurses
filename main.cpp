@@ -4,13 +4,14 @@
 #include <locale>
 #include <codecvt>
 #include <sys/ioctl.h>
-#include <chrono>
 #include <thread>
 #include <csignal>
 #include <functional>
 #include "input.hpp"
 #include "utfstring.hpp"
 #include "display.hpp"
+#include "cell_attributes.hpp"
+#include "timer.hpp"
 #include <cmath>
 
 bool running = true;
@@ -22,22 +23,15 @@ void handleSigint(int signum __attribute__((unused))) {
 const char* BACKSPACE = "\x7f";
 const char* REDRAW = "\x0c";
 
-Color rgb(float i) {
-	return Color(
-		std::pow(std::sin(i + (0 / 3.0) * M_PI), 2) * 255,
-		std::pow(std::sin(i + (1 / 3.0) * M_PI), 2) * 255,
-		std::pow(std::sin(i + (2 / 3.0) * M_PI), 2) * 255
-	);
-}
-
 int main() {
 	Display display;
 	Input input;
+	Timer timer;
 	input.run();
 
 	std::signal(SIGINT, &handleSigint);
+
 	utfstring text("");
-	unsigned int count = 0;
 	unsigned int cursor_position = 0;
 
 	while (running) {
@@ -76,43 +70,47 @@ int main() {
 			}
 		}
 
+		unsigned long time = timer.getTime();
+
 		display.update();
 		Buffer& buffer = display.getBuffer();
 
 		buffer.setCursorPosition(5 + cursor_position, 10);
 
 		for (int lol = 5; lol < 15; lol++) { 
-			buffer.line(lol, 10, lol + 10, 50, rgb(count / 30.0 + lol / 5.0));
+			buffer.line(lol, 5, lol + 10, 50, CellAttributes().bg(Color::rgb(time / 500.0 + lol / 5.0)));
 		}
 
-		buffer.text(5, 10, std::string(text.length() + 1, ' '), 0x000000);
-		buffer.text(5, 10, text, 0x555555);
-		buffer.text(5, 11, std::string(text.length() + 1, ' '), 0x000000);
-		buffer.text(5, 11, std::to_string(text.length()) + " ", rgb(count / 20.0));
-		buffer.text(5, 12, std::string(text.length() + 1, ' '), 0x000000);
-		buffer.text(5, 12, text.substr(0, text.length()), rgb(count / 50.0), rgb(count / 50.0 + 1.0));
-		count++;
+		buffer.circle(100, 10, 20, CellAttributes().bg(Color::rgb(time / 1000.0)));
+
+		CellAttributes textAttrs;
+		textAttrs.fg(0xffffff).bg(0x000000);
+
+		buffer.text(5, 10, text, textAttrs);
+		buffer.text(5, 11, std::to_string(text.length()) + " ", CellAttributes(textAttrs).fg(Color::rgb(time / 200.0)));
+		buffer.text(5, 12, text.substr(0, text.length()), CellAttributes(textAttrs).fg(Color::rgb(time / 400.0)).bg(Color::rgb(time / 800.0)));
+		buffer.text(5, 13, std::to_string(time), textAttrs);
+
+		CellAttributes textAttrs2(textAttrs);
+		textAttrs2.fg(Color::rgb(time / 1000.0));
 
 		int i = 0;
-
-		for (int x = 0; x < display.height(); x++) {
-			buffer.text(30, x, std::string(20, ' '), 0x000000);
-		}
 
 		for (utfstring ch : text.chars()) {
 			int j = 0;
 
 			for (char c : ch.str()) {
 				const std::string s = std::to_string((int)c);
-				buffer.text(30 + j, i, s, rgb(count / 100.0));
+				buffer.text(30 + j, i, s, textAttrs2);
 				j += s.length() + 1;
 			}
 
 			i++;
 		}
 
-		buffer.print();
+		buffer.text(30, i, std::string(20, ' '), textAttrs);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		buffer.print();
+		timer.update();
 	}
 }
